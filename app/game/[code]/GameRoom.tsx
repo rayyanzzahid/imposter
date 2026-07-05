@@ -150,7 +150,7 @@ export default function GameRoom({ room }: { room: Room }) {
       advancing.current = true
       const timeout = setTimeout(() => {
         advanceToDiscussion(round.id)
-      }, 4000)
+      }, 12000)
       return () => clearTimeout(timeout)
     }
   }, [round?.phase, isHost, round?.id])
