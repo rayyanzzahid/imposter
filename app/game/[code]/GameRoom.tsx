@@ -313,6 +313,15 @@ export default function GameRoom({ room }: { room: Room }) {
 
       {round.phase === 'question_reveal' && (
         <>
+          {round.imposter_player_id === me.id && (
+            <div className="bg-danger/20 border border-danger rounded-xl px-4 py-3 max-w-sm">
+              <p className="text-danger font-bold">You were the Imposter!</p>
+              <p className="text-zinc-300 text-sm mt-1">
+                You answered a different question. Try to blend in during discussion.
+              </p>
+            </div>
+          )}
+
           <h1 className="text-2xl font-bold text-white">The Real Question Was...</h1>
           <p className="text-3xl font-black text-neon-purple max-w-sm">
             {mainQuestion?.text}

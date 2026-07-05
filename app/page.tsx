@@ -67,6 +67,11 @@ export default function HomePage() {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                mode === 'create' ? handleCreate() : handleJoin()
+              }
+            }}
             placeholder="Your name"
             className="rounded-xl bg-surface px-4 py-3 text-white outline-none border border-white/10 focus:border-neon-purple"
           />
@@ -74,6 +79,9 @@ export default function HomePage() {
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleJoin()
+              }}
               placeholder="Room code"
               maxLength={5}
               className="rounded-xl bg-surface px-4 py-3 text-white outline-none border border-white/10 focus:border-neon-purple tracking-widest text-center uppercase"
