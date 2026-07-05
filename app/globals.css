@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0E0E12;
-  --color-surface: #1A1A21;
-  --color-surface-elevated: #232330;
-  --color-neon-purple: #8B5CF6;
-  --color-neon-pink: #EC4899;
-  --color-neon-blue: #3B82F6;
-  --color-neon-green: #22D3EE;
-  --color-success: #22C55E;
-  --color-danger: #EF4444;
-  --color-warning: #F59E0B;
+  --color-background: #14151A;
+  --color-surface: #1D1E25;
+  --color-surface-elevated: #262731;
+  --color-case-red: #C0392B;
+  --color-evidence-gold: #C9A24B;
+  --color-stamp-green: #5A7A5E;
+  --color-muted: #83808A;
+  --color-paper: #EDEAE1;
+  --font-mono: var(--font-mono);
+  --font-sans: var(--font-body);
 }
 
 html {
@@ -19,5 +19,28 @@ html {
 
 body {
   background-color: var(--color-background);
-  color: #F4F4F5;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(192,57,43,0.04), transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(201,162,75,0.03), transparent 40%);
+  color: var(--color-paper);
+}
+
+.case-label {
+  font-family: var(--font-mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: var(--color-muted);
+}
+
+.stamp {
+  display: inline-block;
+  transform: rotate(-3deg);
+  border: 3px solid var(--color-case-red);
+  color: var(--color-case-red);
+  font-family: var(--font-mono);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 0.4rem 1rem;
+  text-transform: uppercase;
 }

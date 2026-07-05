@@ -410,9 +410,9 @@ export default function GameRoom({ room }: { room: Room }) {
 
         return (
           <>
-            <h1 className={`text-3xl font-black ${imposterCaught ? 'text-success' : 'text-danger'}`}>
-              {imposterCaught ? 'Imposter Caught!' : 'Imposter Escaped!'}
-            </h1>
+            <div className={`stamp ${imposterCaught ? '' : 'border-stamp-green text-stamp-green'}`}>
+              {imposterCaught ? 'Case Closed' : 'Suspect Escaped'}
+            </div>
             <p className="text-xl text-white mt-2">
               The Imposter was <span className="text-neon-purple font-bold">{imposter?.name}</span>
             </p>
