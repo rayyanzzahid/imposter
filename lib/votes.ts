@@ -4,6 +4,9 @@ export async function submitVote(roundId: string, voterId: string, votedForId: s
   const supabase = createClient()
   const { error } = await supabase
     .from('votes')
-    .insert({ round_id: roundId, voter_id: voterId, voted_for_id: votedForId })
+    .upsert(
+      { round_id: roundId, voter_id: voterId, voted_for_id: votedForId },
+      { onConflict: 'round_id,voter_id' }
+    )
   if (error) throw error
 }

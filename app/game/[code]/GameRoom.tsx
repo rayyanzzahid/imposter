@@ -25,6 +25,7 @@ export default function GameRoom({ room }: { room: Room }) {
   const [round, setRound] = useState<Round | null>(null)
   const [question, setQuestion] = useState<Question | null>(null)
   const [mainQuestion, setMainQuestion] = useState<Question | null>(null)
+  const [imposterQuestion, setImposterQuestion] = useState<Question | null>(null)
   const [me, setMe] = useState<Player | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [answers, setAnswers] = useState<Answer[]>([])
@@ -62,6 +63,7 @@ export default function GameRoom({ room }: { room: Room }) {
 
     let newQuestion: Question | null = null
     let newMainQuestion: Question | null = null
+    let newImposterQuestion: Question | null = null
     let newAnswers: Answer[] = []
     let newVotes: Vote[] = []
     let newSkips: string[] = []
@@ -70,9 +72,10 @@ export default function GameRoom({ room }: { room: Room }) {
       const isImposter = currentRound.imposter_player_id === player.id
       const myQuestionId = isImposter ? currentRound.imposter_question_id : currentRound.question_id
 
-      const [qRes, mqRes, answersRes, votesRes, skipsRes] = await Promise.all([
+      const [qRes, mqRes, iqRes, answersRes, votesRes, skipsRes] = await Promise.all([
         supabase.from('questions').select().eq('id', myQuestionId).single(),
         supabase.from('questions').select().eq('id', currentRound.question_id).single(),
+        supabase.from('questions').select().eq('id', currentRound.imposter_question_id).single(),
         supabase.from('answers').select().eq('round_id', currentRound.id),
         supabase.from('votes').select().eq('round_id', currentRound.id),
         supabase.from('discussion_skips').select('player_id').eq('round_id', currentRound.id),
@@ -80,6 +83,7 @@ export default function GameRoom({ room }: { room: Room }) {
 
       newQuestion = qRes.data
       newMainQuestion = mqRes.data
+      newImposterQuestion = iqRes.data
       newAnswers = answersRes.data ?? []
       newVotes = votesRes.data ?? []
       newSkips = (skipsRes.data ?? []).map((s) => s.player_id)
@@ -94,6 +98,7 @@ export default function GameRoom({ room }: { room: Room }) {
     setMe(player)
     setQuestion(newQuestion)
     setMainQuestion(newMainQuestion)
+    setImposterQuestion(newImposterQuestion)
     setAnswers(newAnswers)
     setVotes(newVotes)
     setSkips(newSkips)
@@ -144,7 +149,7 @@ export default function GameRoom({ room }: { room: Room }) {
     }
   }, [round?.phase, allAnswered, isHost, round?.id])
 
-  // question_reveal -> discussion, after a short pause
+  // question_reveal -> discussion, after a pause
   useEffect(() => {
     if (round?.phase === 'question_reveal' && isHost && !advancing.current) {
       advancing.current = true
@@ -218,7 +223,7 @@ export default function GameRoom({ room }: { room: Room }) {
   if (!round || !me || !question) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="text-zinc-400">Loading round...</p>
+        <p className="text-muted">Loading round...</p>
       </main>
     )
   }
@@ -231,19 +236,19 @@ export default function GameRoom({ room }: { room: Room }) {
 
     return (
       <main className="flex min-h-screen flex-col items-center gap-6 px-6 py-12 text-center">
-        <h1 className="text-3xl font-black text-neon-purple">Game Over!</h1>
+        <h1 className="text-3xl font-black text-evidence-gold">Case Closed — Final Report</h1>
         <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
           {[...players].sort((a, b) => b.score - a.score).map((p, i) => (
             <div
               key={p.id}
               className={`flex justify-between rounded-xl px-4 py-3 border ${
-                i === 0 ? 'bg-neon-purple/20 border-neon-purple' : 'bg-surface border-white/10'
+                i === 0 ? 'bg-evidence-gold/20 border-evidence-gold' : 'bg-surface border-white/10'
               }`}
             >
-              <span className="text-white font-medium">
+              <span className="text-paper font-medium">
                 {i === 0 && '🏆 '}{p.name}
               </span>
-              <span className="text-neon-purple font-bold">{p.score} pts</span>
+              <span className="text-evidence-gold font-bold">{p.score} pts</span>
             </div>
           ))}
         </div>
@@ -252,12 +257,12 @@ export default function GameRoom({ room }: { room: Room }) {
           {isHost && (
             <button
               onClick={handlePlayAgain}
-              className="rounded-2xl bg-neon-purple px-6 py-4 font-bold text-white"
+              className="rounded-2xl bg-case-red px-6 py-4 font-bold text-paper"
             >
               Stay &amp; Play Again
             </button>
           )}
-          <a href="/" className="text-zinc-400 text-sm">Back to Home</a>
+          <a href="/" className="text-muted text-sm">Back to Home</a>
         </div>
       </main>
     )
@@ -273,7 +278,6 @@ export default function GameRoom({ room }: { room: Room }) {
   }
 
   async function handleVote(votedForId: string) {
-    if (myVote) return
     await submitVote(round!.id, me!.id, votedForId)
   }
 
@@ -284,12 +288,12 @@ export default function GameRoom({ room }: { room: Room }) {
 
   return (
     <main className="flex min-h-screen flex-col items-center gap-6 px-6 py-12 text-center">
-      <p className="text-zinc-500 text-sm">Round {round.round_number}</p>
+      <p className="case-label">Round {round.round_number}</p>
 
       {round.phase === 'answering' && (
         <>
-          <h1 className="text-2xl font-bold text-white">Your Question</h1>
-          <p className="text-3xl font-black text-neon-purple max-w-sm">{question.text}</p>
+          <h1 className="text-2xl font-bold text-paper">Your Question</h1>
+          <p className="text-3xl font-black text-evidence-gold max-w-sm">{question.text}</p>
 
           {!myAnswer ? (
             <div className="w-full max-w-sm flex flex-col gap-3 mt-4">
@@ -297,14 +301,14 @@ export default function GameRoom({ room }: { room: Room }) {
                 <button
                   key={p.id}
                   onClick={() => handleAnswer(p)}
-                  className="rounded-xl bg-surface px-4 py-4 font-medium text-white border border-white/10"
+                  className="rounded-xl bg-surface px-4 py-4 font-medium text-paper border border-white/10"
                 >
                   {p.name}
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-zinc-400 mt-4">
+            <p className="text-muted mt-4">
               Waiting for others ({answers.length}/{players.length} answered)...
             </p>
           )}
@@ -314,27 +318,27 @@ export default function GameRoom({ room }: { room: Room }) {
       {round.phase === 'question_reveal' && (
         <>
           {round.imposter_player_id === me.id && (
-            <div className="bg-danger/20 border border-danger rounded-xl px-4 py-3 max-w-sm">
-              <p className="text-danger font-bold">You were the Imposter!</p>
-              <p className="text-zinc-300 text-sm mt-1">
+            <div className="bg-case-red/20 border border-case-red rounded-xl px-4 py-3 max-w-sm">
+              <p className="text-case-red font-bold">You were the Imposter!</p>
+              <p className="text-paper/80 text-sm mt-1">
                 You answered a different question. Try to blend in during discussion.
               </p>
             </div>
           )}
 
-          <h1 className="text-2xl font-bold text-white">The Real Question Was...</h1>
-          <p className="text-3xl font-black text-neon-purple max-w-sm">
+          <h1 className="text-2xl font-bold text-paper">The Real Question Was...</h1>
+          <p className="text-3xl font-black text-evidence-gold max-w-sm">
             {mainQuestion?.text}
           </p>
-          <p className="text-zinc-400 mt-2">Look back at everyone&apos;s answers. Who seems off?</p>
+          <p className="text-muted mt-2">Look back at everyone&apos;s answers. Who seems off?</p>
 
           <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
             {players.map((p) => {
               const a = answers.find((a) => a.player_id === p.id)
               return (
                 <div key={p.id} className="flex justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <span className="text-white">{p.name}</span>
-                  <span className="text-zinc-400">{a?.text ?? '...'}</span>
+                  <span className="text-paper">{p.name}</span>
+                  <span className="text-muted">{a?.text ?? '...'}</span>
                 </div>
               )
             })}
@@ -344,48 +348,56 @@ export default function GameRoom({ room }: { room: Room }) {
 
       {round.phase === 'discussion' && (
         <>
-          <h1 className="text-2xl font-bold text-white">Discuss!</h1>
-          <p className="text-5xl font-black text-neon-purple">{secondsLeft}s</p>
-          <p className="text-zinc-400">Talk it out. Who do you think is the Imposter?</p>
+          <h1 className="text-2xl font-bold text-paper">Discuss!</h1>
+          <p className="text-5xl font-black text-evidence-gold" style={{ fontFamily: 'var(--font-mono)' }}>
+            {secondsLeft}s
+          </p>
+          <p className="text-muted">Talk it out. Who do you think is the Imposter?</p>
 
           <button
             onClick={handleSkip}
             disabled={iSkipped}
-            className="rounded-2xl bg-surface px-6 py-4 font-bold text-white border border-white/10 disabled:opacity-40 mt-4"
+            className="rounded-2xl bg-surface px-6 py-4 font-bold text-paper border border-white/10 disabled:opacity-40 mt-4"
           >
             {iSkipped ? `Waiting for others (${skips.length}/${players.length})...` : 'Skip Discussion'}
           </button>
         </>
       )}
 
-      {round.phase === 'voting' && (
-        <>
-          <h1 className="text-2xl font-bold text-white">Who is the Imposter?</h1>
+      {round.phase === 'voting' && (() => {
+        const votingLocked = allVoted
 
-          <div className="w-full max-w-sm flex flex-col gap-3 mt-4">
-            {players.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => handleVote(p.id)}
-                disabled={!!myVote}
-                className={`rounded-xl px-4 py-4 font-medium border transition ${
-                  myVote?.voted_for_id === p.id
-                    ? 'bg-neon-purple border-neon-purple text-white'
-                    : 'bg-surface border-white/10 text-white disabled:opacity-40'
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
+        return (
+          <>
+            <h1 className="text-2xl font-bold text-paper">Who is the Imposter?</h1>
 
-          <p className="text-zinc-400 mt-4">
-            {myVote
-              ? `Waiting for others (${votes.length}/${players.length} voted)...`
-              : 'Tap a player to vote'}
-          </p>
-        </>
-      )}
+            <div className="w-full max-w-sm flex flex-col gap-3 mt-4">
+              {players.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => handleVote(p.id)}
+                  disabled={votingLocked}
+                  className={`rounded-xl px-4 py-4 font-medium border transition ${
+                    myVote?.voted_for_id === p.id
+                      ? 'bg-case-red border-case-red text-paper'
+                      : 'bg-surface border-white/10 text-paper disabled:opacity-40'
+                  }`}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-muted mt-4">
+              {votingLocked
+                ? 'Everyone has voted!'
+                : myVote
+                  ? `Vote locked in — tap another name to change it (${votes.length}/${players.length} voted)`
+                  : 'Tap a player to vote'}
+            </p>
+          </>
+        )
+      })()}
 
       {round.phase === 'reveal' && (() => {
         const imposter = players.find((p) => p.id === round.imposter_player_id)
@@ -413,26 +425,31 @@ export default function GameRoom({ room }: { room: Room }) {
             <div className={`stamp ${imposterCaught ? '' : 'border-stamp-green text-stamp-green'}`}>
               {imposterCaught ? 'Case Closed' : 'Suspect Escaped'}
             </div>
-            <p className="text-xl text-white mt-2">
-              The Imposter was <span className="text-neon-purple font-bold">{imposter?.name}</span>
+            <p className="text-xl text-paper mt-2">
+              The Imposter was <span className="text-evidence-gold font-bold">{imposter?.name}</span>
             </p>
 
             <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
-              <p className="text-zinc-400 text-sm text-left">Vote breakdown</p>
+              <p className="case-label text-left">Vote Breakdown</p>
               {players.map((p) => (
                 <div key={p.id} className="flex justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <span className="text-white">{p.name}</span>
-                  <span className="text-zinc-400">{tally[p.id] ?? 0} votes</span>
+                  <span className="text-paper">{p.name}</span>
+                  <span className="text-muted">{tally[p.id] ?? 0} votes</span>
                 </div>
               ))}
             </div>
 
+            <div className="w-full max-w-sm mt-6">
+              <p className="case-label text-left mb-2">The Imposter&apos;s Question Was</p>
+              <p className="text-2xl font-black text-case-red">{imposterQuestion?.text}</p>
+            </div>
+
             <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
-              <p className="text-zinc-400 text-sm text-left">Scoreboard</p>
+              <p className="case-label text-left">Scoreboard</p>
               {[...players].sort((a, b) => b.score - a.score).map((p) => (
                 <div key={p.id} className="flex justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <span className="text-white">{p.name}</span>
-                  <span className="text-neon-purple font-bold">{p.score} pts</span>
+                  <span className="text-paper">{p.name}</span>
+                  <span className="text-evidence-gold font-bold">{p.score} pts</span>
                 </div>
               ))}
             </div>
@@ -440,7 +457,7 @@ export default function GameRoom({ room }: { room: Room }) {
             {isHost && (
               <button
                 onClick={handleNextOrEnd}
-                className="rounded-2xl bg-neon-purple px-6 py-4 font-bold text-white mt-6 w-full max-w-sm"
+                className="rounded-2xl bg-case-red px-6 py-4 font-bold text-paper mt-6 w-full max-w-sm"
               >
                 {isLastRound ? 'End Game' : 'Next Round'} ({autoAdvanceIn}s)
               </button>
