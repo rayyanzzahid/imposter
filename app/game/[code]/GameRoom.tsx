@@ -18,6 +18,18 @@ import {
 } from '@/app/actions/game'
 import type { Room, Player, Round, Question, Answer, Vote } from '@/lib/supabase/types'
 
+function Avatar({ url, name }: { url: string | null; name: string }) {
+  return (
+    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+      {url ? (
+        <img src={url} alt={name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-sm">🕵️</span>
+      )}
+    </div>
+  )
+}
+
 export default function GameRoom({ room }: { room: Room }) {
   const supabase = createClient()
   const router = useRouter()
@@ -141,7 +153,6 @@ export default function GameRoom({ room }: { room: Room }) {
   const allVoted = players.length > 0 && players.every((p) => votes.some((v) => v.voter_id === p.id))
   const isHost = me?.is_host ?? false
 
-  // answering -> question_reveal, once everyone's answered
   useEffect(() => {
     if (round?.phase === 'answering' && allAnswered && isHost && !advancing.current) {
       advancing.current = true
@@ -149,7 +160,6 @@ export default function GameRoom({ room }: { room: Room }) {
     }
   }, [round?.phase, allAnswered, isHost, round?.id])
 
-  // question_reveal -> discussion, after a pause
   useEffect(() => {
     if (round?.phase === 'question_reveal' && isHost && !advancing.current) {
       advancing.current = true
@@ -160,7 +170,6 @@ export default function GameRoom({ room }: { room: Room }) {
     }
   }, [round?.phase, isHost, round?.id])
 
-  // discussion countdown -> voting (auto, or immediately if everyone skips)
   useEffect(() => {
     if (round?.phase !== 'discussion' || !round.discussion_ends_at) return
 
@@ -188,7 +197,6 @@ export default function GameRoom({ room }: { room: Room }) {
     return () => clearInterval(interval)
   }, [round?.phase, round?.discussion_ends_at, isHost, round?.id, players, skips])
 
-  // voting -> reveal, once everyone's voted
   useEffect(() => {
     if (round?.phase === 'voting' && allVoted && isHost && !advancing.current) {
       advancing.current = true
@@ -196,7 +204,6 @@ export default function GameRoom({ room }: { room: Room }) {
     }
   }, [round?.phase, allVoted, isHost, round?.id])
 
-  // reveal -> auto Next Round / End Game after 5s if host doesn't click manually
   useEffect(() => {
     if (round?.phase !== 'reveal' || !isHost) return
     setAutoAdvanceIn(5)
@@ -241,13 +248,16 @@ export default function GameRoom({ room }: { room: Room }) {
           {[...players].sort((a, b) => b.score - a.score).map((p, i) => (
             <div
               key={p.id}
-              className={`flex justify-between rounded-xl px-4 py-3 border ${
+              className={`flex justify-between items-center rounded-xl px-4 py-3 border ${
                 i === 0 ? 'bg-evidence-gold/20 border-evidence-gold' : 'bg-surface border-white/10'
               }`}
             >
-              <span className="text-paper font-medium">
-                {i === 0 && '🏆 '}{p.name}
-              </span>
+              <div className="flex items-center gap-2">
+                <Avatar url={p.avatar_url} name={p.name} />
+                <span className="text-paper font-medium">
+                  {i === 0 && '🏆 '}{p.name}
+                </span>
+              </div>
               <span className="text-evidence-gold font-bold">{p.score} pts</span>
             </div>
           ))}
@@ -301,8 +311,9 @@ export default function GameRoom({ room }: { room: Room }) {
                 <button
                   key={p.id}
                   onClick={() => handleAnswer(p)}
-                  className="rounded-xl bg-surface px-4 py-4 font-medium text-paper border border-white/10"
+                  className="flex items-center gap-3 rounded-xl bg-surface px-4 py-4 font-medium text-paper border border-white/10"
                 >
+                  <Avatar url={p.avatar_url} name={p.name} />
                   {p.name}
                 </button>
               ))}
@@ -336,8 +347,11 @@ export default function GameRoom({ room }: { room: Room }) {
             {players.map((p) => {
               const a = answers.find((a) => a.player_id === p.id)
               return (
-                <div key={p.id} className="flex justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <span className="text-paper">{p.name}</span>
+                <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Avatar url={p.avatar_url} name={p.name} />
+                    <span className="text-paper">{p.name}</span>
+                  </div>
                   <span className="text-muted">{a?.text ?? '...'}</span>
                 </div>
               )
@@ -377,12 +391,13 @@ export default function GameRoom({ room }: { room: Room }) {
                   key={p.id}
                   onClick={() => handleVote(p.id)}
                   disabled={votingLocked}
-                  className={`rounded-xl px-4 py-4 font-medium border transition ${
+                  className={`flex items-center gap-3 rounded-xl px-4 py-4 font-medium border transition ${
                     myVote?.voted_for_id === p.id
                       ? 'bg-case-red border-case-red text-paper'
                       : 'bg-surface border-white/10 text-paper disabled:opacity-40'
                   }`}
                 >
+                  <Avatar url={p.avatar_url} name={p.name} />
                   {p.name}
                 </button>
               ))}
@@ -425,15 +440,21 @@ export default function GameRoom({ room }: { room: Room }) {
             <div className={`stamp ${imposterCaught ? '' : 'border-stamp-green text-stamp-green'}`}>
               {imposterCaught ? 'Case Closed' : 'Suspect Escaped'}
             </div>
-            <p className="text-xl text-paper mt-2">
-              The Imposter was <span className="text-evidence-gold font-bold">{imposter?.name}</span>
-            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <Avatar url={imposter?.avatar_url ?? null} name={imposter?.name ?? ''} />
+              <p className="text-xl text-paper">
+                The Imposter was <span className="text-evidence-gold font-bold">{imposter?.name}</span>
+              </p>
+            </div>
 
             <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
               <p className="case-label text-left">Vote Breakdown</p>
               {players.map((p) => (
-                <div key={p.id} className="flex justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <span className="text-paper">{p.name}</span>
+                <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Avatar url={p.avatar_url} name={p.name} />
+                    <span className="text-paper">{p.name}</span>
+                  </div>
                   <span className="text-muted">{tally[p.id] ?? 0} votes</span>
                 </div>
               ))}
@@ -447,8 +468,11 @@ export default function GameRoom({ room }: { room: Room }) {
             <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
               <p className="case-label text-left">Scoreboard</p>
               {[...players].sort((a, b) => b.score - a.score).map((p) => (
-                <div key={p.id} className="flex justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <span className="text-paper">{p.name}</span>
+                <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Avatar url={p.avatar_url} name={p.name} />
+                    <span className="text-paper">{p.name}</span>
+                  </div>
                   <span className="text-evidence-gold font-bold">{p.score} pts</span>
                 </div>
               ))}

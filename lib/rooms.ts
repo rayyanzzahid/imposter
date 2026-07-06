@@ -11,7 +11,7 @@ async function nameTaken(supabase: ReturnType<typeof createClient>, roomId: stri
   return (data?.length ?? 0) > 0
 }
 
-export async function createRoom(hostName: string) {
+export async function createRoom(hostName: string, avatarUrl: string | null) {
   const supabase = createClient()
   const sessionId = getSessionId()
   const code = generateRoomCode()
@@ -30,6 +30,7 @@ export async function createRoom(hostName: string) {
       room_id: room.id,
       session_id: sessionId,
       name: hostName,
+      avatar_url: avatarUrl,
       is_host: true,
     })
 
@@ -38,7 +39,7 @@ export async function createRoom(hostName: string) {
   return room.code
 }
 
-export async function joinRoom(code: string, playerName: string) {
+export async function joinRoom(code: string, playerName: string, avatarUrl: string | null) {
   const supabase = createClient()
   const sessionId = getSessionId()
 
@@ -60,6 +61,7 @@ export async function joinRoom(code: string, playerName: string) {
       room_id: room.id,
       session_id: sessionId,
       name: playerName,
+      avatar_url: avatarUrl,
       is_host: false,
     })
 

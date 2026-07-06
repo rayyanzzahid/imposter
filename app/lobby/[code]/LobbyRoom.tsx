@@ -20,6 +20,18 @@ const CATEGORIES = [
   { value: 'travel', label: 'On the Road' },
 ]
 
+function Avatar({ url, name }: { url: string | null; name: string }) {
+  return (
+    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+      {url ? (
+        <img src={url} alt={name} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-sm">🕵️</span>
+      )}
+    </div>
+  )
+}
+
 export default function LobbyRoom({ room }: { room: Room }) {
   const router = useRouter()
   const supabase = createClient()
@@ -124,6 +136,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
             className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10"
           >
             <div className="flex items-center gap-2">
+              <Avatar url={player.avatar_url} name={player.name} />
               {player.is_host && <span title="Host">👑</span>}
               <span className="text-paper font-medium">{player.name}</span>
               {player.session_id === sessionId && (
