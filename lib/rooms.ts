@@ -30,7 +30,7 @@ export async function createRoom(hostName: string, avatar: string) {
       room_id: room.id,
       user_id: userId,
       name: hostName,
-      avatar,
+      avatar_url: avatar,
       is_host: true,
     })
 
@@ -61,7 +61,7 @@ export async function joinRoom(code: string, playerName: string, avatar: string)
       room_id: room.id,
       user_id: userId,
       name: playerName,
-      avatar,
+      avatar_url: avatar,
       is_host: false,
     })
 

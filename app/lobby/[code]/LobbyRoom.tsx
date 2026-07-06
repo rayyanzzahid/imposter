@@ -139,7 +139,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
             className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10"
           >
             <div className="flex items-center gap-2">
-              <Avatar emoji={player.avatar} />
+              <Avatar emoji={player.avatar_url} />
               {player.is_host && <span title="Host">👑</span>}
               <span className="text-paper font-medium">{player.name}</span>
               {player.user_id === userId && (
