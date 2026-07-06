@@ -1,6 +1,6 @@
 import { createClient } from './supabase/client'
 import { generateRoomCode } from './roomCode'
-import { getSessionId } from './session'
+import { getUserId } from './auth'
 
 async function nameTaken(supabase: ReturnType<typeof createClient>, roomId: string, name: string) {
   const { data } = await supabase
@@ -11,14 +11,14 @@ async function nameTaken(supabase: ReturnType<typeof createClient>, roomId: stri
   return (data?.length ?? 0) > 0
 }
 
-export async function createRoom(hostName: string, avatarUrl: string | null) {
+export async function createRoom(hostName: string, avatar: string) {
   const supabase = createClient()
-  const sessionId = getSessionId()
+  const userId = await getUserId()
   const code = generateRoomCode()
 
   const { data: room, error: roomError } = await supabase
     .from('rooms')
-    .insert({ code, host_id: sessionId })
+    .insert({ code, host_user_id: userId })
     .select()
     .single()
 
@@ -28,9 +28,9 @@ export async function createRoom(hostName: string, avatarUrl: string | null) {
     .from('players')
     .insert({
       room_id: room.id,
-      session_id: sessionId,
+      user_id: userId,
       name: hostName,
-      avatar_url: avatarUrl,
+      avatar,
       is_host: true,
     })
 
@@ -39,9 +39,9 @@ export async function createRoom(hostName: string, avatarUrl: string | null) {
   return room.code
 }
 
-export async function joinRoom(code: string, playerName: string, avatarUrl: string | null) {
+export async function joinRoom(code: string, playerName: string, avatar: string) {
   const supabase = createClient()
-  const sessionId = getSessionId()
+  const userId = await getUserId()
 
   const { data: room, error: roomError } = await supabase
     .from('rooms')
@@ -59,9 +59,9 @@ export async function joinRoom(code: string, playerName: string, avatarUrl: stri
     .from('players')
     .insert({
       room_id: room.id,
-      session_id: sessionId,
+      user_id: userId,
       name: playerName,
-      avatar_url: avatarUrl,
+      avatar,
       is_host: false,
     })
 
@@ -72,18 +72,12 @@ export async function joinRoom(code: string, playerName: string, avatarUrl: stri
 
 export async function setRoomCategory(roomId: string, category: string) {
   const supabase = createClient()
-  const { error } = await supabase
-    .from('rooms')
-    .update({ category })
-    .eq('id', roomId)
+  const { error } = await supabase.from('rooms').update({ category }).eq('id', roomId)
   if (error) throw error
 }
 
 export async function setTotalRounds(roomId: string, totalRounds: number) {
   const supabase = createClient()
-  const { error } = await supabase
-    .from('rooms')
-    .update({ total_rounds: totalRounds })
-    .eq('id', roomId)
+  const { error } = await supabase.from('rooms').update({ total_rounds: totalRounds }).eq('id', roomId)
   if (error) throw error
 }

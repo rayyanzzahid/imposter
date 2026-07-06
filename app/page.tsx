@@ -3,7 +3,21 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createRoom, joinRoom } from '@/lib/rooms'
-import { uploadAvatar } from '@/lib/avatars'
+
+const AVATARS = [
+  { emoji: '🕵️', color: '#C0392B' },
+  { emoji: '🎭', color: '#C9A24B' },
+  { emoji: '🦊', color: '#5A7A5E' },
+  { emoji: '🐺', color: '#83808A' },
+  { emoji: '🎩', color: '#4A6B8A' },
+  { emoji: '👻', color: '#8A5A9A' },
+  { emoji: '🃏', color: '#C0392B' },
+  { emoji: '🔍', color: '#C9A24B' },
+  { emoji: '🦉', color: '#5A7A5E' },
+  { emoji: '🐍', color: '#4A6B8A' },
+  { emoji: '🗝️', color: '#8A5A9A' },
+  { emoji: '🕶️', color: '#83808A' },
+]
 
 export default function HomePage() {
   const router = useRouter()
@@ -12,16 +26,14 @@ export default function HomePage() {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [avatarFile, setAvatarFile] = useState<File | null>(null)
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [avatar, setAvatar] = useState(AVATARS[0].emoji)
 
   async function handleCreate() {
     if (!name.trim()) return setError('Enter your name')
     setLoading(true)
     setError('')
     try {
-      const avatarUrl = avatarFile ? await uploadAvatar(avatarFile) : null
-      const roomCode = await createRoom(name.trim(), avatarUrl)
+      const roomCode = await createRoom(name.trim(), avatar)
       router.push(`/lobby/${roomCode}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
@@ -35,20 +47,11 @@ export default function HomePage() {
     setLoading(true)
     setError('')
     try {
-      const avatarUrl = avatarFile ? await uploadAvatar(avatarFile) : null
-      const roomCode = await joinRoom(code.trim(), name.trim(), avatarUrl)
+      const roomCode = await joinRoom(code.trim(), name.trim(), avatar)
       router.push(`/lobby/${roomCode}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Room not found')
       setLoading(false)
-    }
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) {
-      setAvatarFile(file)
-      setAvatarPreview(URL.createObjectURL(file))
     }
   }
 
@@ -85,17 +88,22 @@ export default function HomePage() {
       {(mode === 'create' || mode === 'join') && (
         <div className="flex flex-col gap-4 w-full max-w-xs items-center">
           <div className="flex flex-col items-center gap-2">
-            <label className="cursor-pointer">
-              <div className="w-20 h-20 rounded-full bg-surface border-2 border-white/10 flex items-center justify-center overflow-hidden">
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="Your avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-3xl">📷</span>
-                )}
-              </div>
-              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-            </label>
-            <span className="text-muted text-xs">Tap to add a photo</span>
+            <span className="case-label">Choose your avatar</span>
+            <div className="grid grid-cols-6 gap-2">
+              {AVATARS.map((a) => (
+                <button
+                  key={a.emoji}
+                  onClick={() => setAvatar(a.emoji)}
+                  className="w-11 h-11 rounded-full flex items-center justify-center text-xl border-2 transition"
+                  style={{
+                    backgroundColor: avatar === a.emoji ? a.color : '#1D1E25',
+                    borderColor: avatar === a.emoji ? a.color : 'rgba(255,255,255,0.1)',
+                  }}
+                >
+                  {a.emoji}
+                </button>
+              ))}
+            </div>
           </div>
 
           <input

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getSessionId } from '@/lib/session'
+import { getUserId } from '@/lib/auth'
 import { toggleReady, kickPlayer, leaveRoom } from '@/lib/players'
 import { setRoomCategory, setTotalRounds } from '@/lib/rooms'
 import { startRound } from '@/app/actions/game'
@@ -20,14 +20,10 @@ const CATEGORIES = [
   { value: 'travel', label: 'On the Road' },
 ]
 
-function Avatar({ url, name }: { url: string | null; name: string }) {
+function Avatar({ emoji }: { emoji: string }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-      {url ? (
-        <img src={url} alt={name} className="w-full h-full object-cover" />
-      ) : (
-        <span className="text-sm">🕵️</span>
-      )}
+    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 flex items-center justify-center shrink-0 text-sm">
+      {emoji}
     </div>
   )
 }
@@ -40,11 +36,18 @@ export default function LobbyRoom({ room }: { room: Room }) {
   const [totalRounds, setTotalRoundsState] = useState(room.total_rounds ?? 5)
   const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
-  const sessionId = getSessionId()
-  const me = players.find((p) => p.session_id === sessionId)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    getUserId().then(setUserId)
+  }, [])
+
+  const me = players.find((p) => p.user_id === userId)
   const isHost = me?.is_host ?? false
 
   useEffect(() => {
+    if (!userId) return
+
     async function loadPlayers() {
       const { data } = await supabase
         .from('players')
@@ -76,7 +79,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [room.id, room.code, router, supabase])
+  }, [room.id, room.code, router, supabase, userId])
 
   async function handleLeave() {
     if (me) await leaveRoom(me.id)
@@ -136,10 +139,10 @@ export default function LobbyRoom({ room }: { room: Room }) {
             className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10"
           >
             <div className="flex items-center gap-2">
-              <Avatar url={player.avatar_url} name={player.name} />
+              <Avatar emoji={player.avatar} />
               {player.is_host && <span title="Host">👑</span>}
               <span className="text-paper font-medium">{player.name}</span>
-              {player.session_id === sessionId && (
+              {player.user_id === userId && (
                 <span className="text-muted text-xs">(you)</span>
               )}
             </div>

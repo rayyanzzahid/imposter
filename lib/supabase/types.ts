@@ -1,7 +1,7 @@
 export type Room = {
   id: string
   code: string
-  host_id: string
+  host_user_id: string
   status: 'lobby' | 'playing' | 'ended'
   category: string
   total_rounds: number
@@ -11,9 +11,9 @@ export type Room = {
 export type Player = {
   id: string
   room_id: string
-  session_id: string
+  user_id: string
   name: string
-  avatar_url: string | null
+  avatar: string
   is_host: boolean
   is_ready: boolean
   score: number
@@ -27,9 +27,15 @@ export type Round = {
   question_id: string
   imposter_question_id: string
   imposter_player_id: string
-  phase: 'role_reveal' | 'answering' | 'question_reveal' | 'discussion' | 'voting' | 'reveal'
+  phase: 'answering' | 'question_reveal' | 'discussion' | 'voting' | 'reveal'
   discussion_ends_at: string | null
   created_at: string
+}
+
+export type Question = {
+  id: string
+  pack_id: string
+  text: string
 }
 
 export type Answer = {
@@ -40,11 +46,7 @@ export type Answer = {
   text: string
   created_at: string
 }
-export type Question = {
-  id: string
-  pack_id: string
-  text: string
-}
+
 export type Vote = {
   id: string
   round_id: string

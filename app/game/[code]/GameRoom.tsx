@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getSessionId } from '@/lib/session'
+import { getUserId } from '@/lib/auth'
 import { submitAnswer } from '@/lib/answers'
 import { submitVote } from '@/lib/votes'
 import { markSkipDiscussion } from '@/lib/rounds'
@@ -18,14 +18,10 @@ import {
 } from '@/app/actions/game'
 import type { Room, Player, Round, Question, Answer, Vote } from '@/lib/supabase/types'
 
-function Avatar({ url, name }: { url: string | null; name: string }) {
+function Avatar({ emoji }: { emoji: string }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-      {url ? (
-        <img src={url} alt={name} className="w-full h-full object-cover" />
-      ) : (
-        <span className="text-sm">🕵️</span>
-      )}
+    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 flex items-center justify-center shrink-0 text-sm">
+      {emoji}
     </div>
   )
 }
@@ -33,7 +29,7 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
 export default function GameRoom({ room }: { room: Room }) {
   const supabase = createClient()
   const router = useRouter()
-  const sessionId = getSessionId()
+  const [userId, setUserId] = useState<string | null>(null)
   const [round, setRound] = useState<Round | null>(null)
   const [question, setQuestion] = useState<Question | null>(null)
   const [mainQuestion, setMainQuestion] = useState<Question | null>(null)
@@ -50,7 +46,13 @@ export default function GameRoom({ room }: { room: Room }) {
   const advancing = useRef(false)
   const nextRoundStarting = useRef(false)
 
+  useEffect(() => {
+    getUserId().then(setUserId)
+  }, [])
+
   async function loadAll() {
+    if (!userId) return
+
     const { data: currentRoom } = await supabase
       .from('rooms')
       .select('status, total_rounds')
@@ -71,7 +73,7 @@ export default function GameRoom({ room }: { room: Room }) {
       .eq('room_id', room.id)
       .order('created_at', { ascending: true })
 
-    const player = allPlayers?.find((p) => p.session_id === sessionId) ?? null
+    const player = allPlayers?.find((p) => p.user_id === userId) ?? null
 
     let newQuestion: Question | null = null
     let newMainQuestion: Question | null = null
@@ -117,6 +119,7 @@ export default function GameRoom({ room }: { room: Room }) {
   }
 
   useEffect(() => {
+    if (!userId) return
     loadAll()
 
     const channel = supabase
@@ -142,7 +145,7 @@ export default function GameRoom({ room }: { room: Room }) {
       supabase.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room.id, sessionId])
+  }, [room.id, userId])
 
   useEffect(() => {
     advancing.current = false
@@ -253,7 +256,7 @@ export default function GameRoom({ room }: { room: Room }) {
               }`}
             >
               <div className="flex items-center gap-2">
-                <Avatar url={p.avatar_url} name={p.name} />
+                <Avatar emoji={p.avatar} />
                 <span className="text-paper font-medium">
                   {i === 0 && '🏆 '}{p.name}
                 </span>
@@ -313,7 +316,7 @@ export default function GameRoom({ room }: { room: Room }) {
                   onClick={() => handleAnswer(p)}
                   className="flex items-center gap-3 rounded-xl bg-surface px-4 py-4 font-medium text-paper border border-white/10"
                 >
-                  <Avatar url={p.avatar_url} name={p.name} />
+                  <Avatar emoji={p.avatar} />
                   {p.name}
                 </button>
               ))}
@@ -349,7 +352,7 @@ export default function GameRoom({ room }: { room: Room }) {
               return (
                 <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
                   <div className="flex items-center gap-2">
-                    <Avatar url={p.avatar_url} name={p.name} />
+                    <Avatar emoji={p.avatar} />
                     <span className="text-paper">{p.name}</span>
                   </div>
                   <span className="text-muted">{a?.text ?? '...'}</span>
@@ -397,7 +400,7 @@ export default function GameRoom({ room }: { room: Room }) {
                       : 'bg-surface border-white/10 text-paper disabled:opacity-40'
                   }`}
                 >
-                  <Avatar url={p.avatar_url} name={p.name} />
+                  <Avatar emoji={p.avatar} />
                   {p.name}
                 </button>
               ))}
@@ -441,7 +444,7 @@ export default function GameRoom({ room }: { room: Room }) {
               {imposterCaught ? 'Case Closed' : 'Suspect Escaped'}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <Avatar url={imposter?.avatar_url ?? null} name={imposter?.name ?? ''} />
+              <Avatar emoji={imposter?.avatar ?? '🕵️'} />
               <p className="text-xl text-paper">
                 The Imposter was <span className="text-evidence-gold font-bold">{imposter?.name}</span>
               </p>
@@ -452,7 +455,7 @@ export default function GameRoom({ room }: { room: Room }) {
               {players.map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
                   <div className="flex items-center gap-2">
-                    <Avatar url={p.avatar_url} name={p.name} />
+                    <Avatar emoji={p.avatar} />
                     <span className="text-paper">{p.name}</span>
                   </div>
                   <span className="text-muted">{tally[p.id] ?? 0} votes</span>
@@ -470,7 +473,7 @@ export default function GameRoom({ room }: { room: Room }) {
               {[...players].sort((a, b) => b.score - a.score).map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
                   <div className="flex items-center gap-2">
-                    <Avatar url={p.avatar_url} name={p.name} />
+                    <Avatar emoji={p.avatar} />
                     <span className="text-paper">{p.name}</span>
                   </div>
                   <span className="text-evidence-gold font-bold">{p.score} pts</span>
