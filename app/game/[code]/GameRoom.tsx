@@ -19,10 +19,10 @@ import {
 import type { Room, Player, Round, Question, Answer, Vote } from '@/lib/supabase/types'
 import Chat from '@/components/Chat'
 
-function Avatar({ emoji }: { emoji: string }) {
+function Avatar({ src }: { src: string }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 flex items-center justify-center shrink-0 text-sm">
-      {emoji}
+    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden shrink-0">
+      <img src={src} alt="Player avatar" className="w-full h-full object-cover" />
     </div>
   )
 }
@@ -257,7 +257,7 @@ export default function GameRoom({ room }: { room: Room }) {
               }`}
             >
               <div className="flex items-center gap-2">
-                <Avatar emoji={p.avatar_url} />
+                <Avatar src={p.avatar} />
                 <span className="text-paper font-medium">
                   {i === 0 && '🏆 '}{p.name}
                 </span>
@@ -317,7 +317,7 @@ export default function GameRoom({ room }: { room: Room }) {
                   onClick={() => handleAnswer(p)}
                   className="flex items-center gap-3 rounded-xl bg-surface px-4 py-4 font-medium text-paper border border-white/10"
                 >
-                  <Avatar emoji={p.avatar_url} />
+                  <Avatar src={p.avatar} />
                   {p.name}
                 </button>
               ))}
@@ -353,7 +353,7 @@ export default function GameRoom({ room }: { room: Room }) {
               return (
                 <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
                   <div className="flex items-center gap-2">
-                    <Avatar emoji={p.avatar_url} />
+                    <Avatar src={p.avatar} />
                     <span className="text-paper">{p.name}</span>
                   </div>
                   <span className="text-muted">{a?.text ?? '...'}</span>
@@ -401,7 +401,7 @@ export default function GameRoom({ room }: { room: Room }) {
                       : 'bg-surface border-white/10 text-paper disabled:opacity-40'
                   }`}
                 >
-                  <Avatar emoji={p.avatar_url} />
+                  <Avatar src={p.avatar} />
                   {p.name}
                 </button>
               ))}
@@ -445,7 +445,7 @@ export default function GameRoom({ room }: { room: Room }) {
               {imposterCaught ? 'Case Closed' : 'Suspect Escaped'}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <Avatar emoji={imposter?.avatar_url ?? '🕵️'} />
+              <Avatar src={imposter?.avatar ?? '/avatars/detective1.png'} />
               <p className="text-xl text-paper">
                 The Imposter was <span className="text-evidence-gold font-bold">{imposter?.name}</span>
               </p>
@@ -456,7 +456,7 @@ export default function GameRoom({ room }: { room: Room }) {
               {players.map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
                   <div className="flex items-center gap-2">
-                    <Avatar emoji={p.avatar_url} />
+                    <Avatar src={p.avatar} />
                     <span className="text-paper">{p.name}</span>
                   </div>
                   <span className="text-muted">{tally[p.id] ?? 0} votes</span>
@@ -474,7 +474,7 @@ export default function GameRoom({ room }: { room: Room }) {
               {[...players].sort((a, b) => b.score - a.score).map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
                   <div className="flex items-center gap-2">
-                    <Avatar emoji={p.avatar_url} />
+                    <Avatar src={p.avatar} />
                     <span className="text-paper">{p.name}</span>
                   </div>
                   <span className="text-evidence-gold font-bold">{p.score} pts</span>
