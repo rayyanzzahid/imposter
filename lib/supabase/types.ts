@@ -13,7 +13,7 @@ export type Player = {
   room_id: string
   user_id: string
   name: string
-  avatar_url: string
+  avatar: string
   is_host: boolean
   is_ready: boolean
   score: number

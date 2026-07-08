@@ -6,18 +6,14 @@ import { createRoom, joinRoom } from '@/lib/rooms'
 import { Logo } from '@/app/components/Logo'
 
 const AVATARS = [
-  { emoji: '🕵️', color: '#C0392B' },
-  { emoji: '🎭', color: '#C9A24B' },
-  { emoji: '🦊', color: '#5A7A5E' },
-  { emoji: '🐺', color: '#83808A' },
-  { emoji: '🎩', color: '#4A6B8A' },
-  { emoji: '👻', color: '#8A5A9A' },
-  { emoji: '🃏', color: '#C0392B' },
-  { emoji: '🔍', color: '#C9A24B' },
-  { emoji: '🦉', color: '#5A7A5E' },
-  { emoji: '🐍', color: '#4A6B8A' },
-  { emoji: '🗝️', color: '#8A5A9A' },
-  { emoji: '🕶️', color: '#83808A' },
+  '/avatars/detective1.png',
+  '/avatars/detective2.jpeg',
+  '/avatars/detective3.png',
+  '/avatars/detective4.png',
+  '/avatars/detective5.png',
+  '/avatars/detective6.png',
+  '/avatars/traitor1.jpeg',
+  // add more paths here as you add files, e.g. '/avatars/detective2.png',
 ]
 
 export default function HomePage() {
@@ -27,7 +23,7 @@ export default function HomePage() {
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [avatar, setAvatar] = useState(AVATARS[0].emoji)
+  const [avatar, setAvatar] = useState(AVATARS[0])
 
   async function handleCreate() {
     if (!name.trim()) return setError('Enter your name')
@@ -91,21 +87,17 @@ export default function HomePage() {
             <span className="case-label">Choose your avatar</span>
 
             <div className="grid grid-cols-6 gap-2">
-              {AVATARS.map((a, i) => (
+              {AVATARS.map((src, i) => (
                 <button
-                  key={a.emoji}
-                  onClick={() => setAvatar(a.emoji)}
-                  data-active={avatar === a.emoji}
-                  className="avatar-tile"
-                  style={{ '--tile-color': a.color } as React.CSSProperties}
-                >
-                  <span className="text-xl">{a.emoji}</span>
-                  <span className="avatar-index">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                </button>
-              ))}
-            </div>
+                key={src}
+                onClick={() => setAvatar(src)}
+                data-active={avatar === src}
+                className="avatar-tile"
+              >
+                <img src={src} alt="Avatar option" className="w-full h-full object-cover rounded-full" />
+            </button>
+           ))}
+          </div>
           </div>
 
           <input

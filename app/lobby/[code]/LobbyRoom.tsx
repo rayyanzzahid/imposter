@@ -21,10 +21,10 @@ const CATEGORIES = [
   { value: 'travel', label: 'On the Road' },
 ]
 
-function Avatar({ emoji }: { emoji: string }) {
+function Avatar({ src }: { src: string }) {
   return (
-    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 flex items-center justify-center shrink-0 text-sm">
-      {emoji}
+    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden shrink-0">
+      <img src={src} alt="Player avatar" className="w-full h-full object-cover" />
     </div>
   )
 }
@@ -140,7 +140,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
             className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10"
           >
             <div className="flex items-center gap-2">
-              <Avatar emoji={player.avatar_url} />
+              <Avatar src={player.avatar} />
               {player.is_host && <span title="Host">👑</span>}
               <span className="text-paper font-medium">{player.name}</span>
               {player.user_id === userId && (
