@@ -17,6 +17,7 @@ import {
   resetGame,
 } from '@/app/actions/game'
 import type { Room, Player, Round, Question, Answer, Vote } from '@/lib/supabase/types'
+import Chat from '@/components/Chat'
 
 function Avatar({ emoji }: { emoji: string }) {
   return (
@@ -492,6 +493,7 @@ export default function GameRoom({ room }: { room: Room }) {
           </>
         )
       })()}
+      <Chat roomId={room.id} me={me} players={players} />
     </main>
   )
 }

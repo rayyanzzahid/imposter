@@ -54,3 +54,11 @@ export type Vote = {
   voted_for_id: string
   created_at: string
 }
+
+export type ChatMessage = {
+  id: string
+  room_id: string
+  player_id: string
+  text: string
+  created_at: string
+}

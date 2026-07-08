@@ -8,6 +8,7 @@ import { toggleReady, kickPlayer, leaveRoom } from '@/lib/players'
 import { setRoomCategory, setTotalRounds } from '@/lib/rooms'
 import { startRound } from '@/app/actions/game'
 import type { Room, Player } from '@/lib/supabase/types'
+import Chat from '@/components/Chat'
 
 const CATEGORIES = [
   { value: 'all', label: 'All Categories' },
@@ -221,6 +222,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
           Leave Room
         </button>
       </div>
+      <Chat roomId={room.id} me={me ?? null} players={players} />
     </main>
   )
 }
