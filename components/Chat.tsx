@@ -92,7 +92,7 @@ export default function Chat({
               >
                 {!isMe && (
                   <p className="text-xs text-muted mb-0.5">
-                    {sender?.avatar_url ?? '🕵️'} {sender?.name ?? 'Unknown'}
+                    {sender?.avatar ?? '🕵️'} {sender?.name ?? 'Unknown'}
                   </p>
                 )}
                 <p>{m.text}</p>
