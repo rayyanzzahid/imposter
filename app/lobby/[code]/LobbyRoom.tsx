@@ -100,19 +100,21 @@ export default function LobbyRoom({ room }: { room: Room }) {
       <section className="page-stack">
         <div className="center-title">
           <p className="case-label">Room code</p>
-          <h1 className="room-code">{room.code}</h1>
-          <button
-            onClick={handleCopyCode}
-            className={`secondary-action icon-action copy-code-action ${copied ? 'is-copied' : ''}`}
-            aria-label={copied ? 'Room code copied' : 'Copy room code'}
-            title={copied ? 'Code copied' : 'Copy room code'}
-          >
-            <svg className="utility-icon copy-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h8A2.5 2.5 0 0 1 21 5.5v9a2.5 2.5 0 0 1-2.5 2.5H17" />
-              <rect x="3" y="7" width="14" height="14" rx="2.5" />
-              <path d="M6.5 11h7M6.5 14.5h5" />
-            </svg>
-          </button>
+          <div className="room-code-line">
+            <h1 className="room-code">{room.code}</h1>
+            <button
+              onClick={handleCopyCode}
+              className={`secondary-action icon-action copy-code-action ${copied ? 'is-copied' : ''}`}
+              aria-label={copied ? 'Room code copied' : 'Copy room code'}
+              title={copied ? 'Code copied' : 'Copy room code'}
+            >
+              <svg className="utility-icon copy-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h8A2.5 2.5 0 0 1 21 5.5v9a2.5 2.5 0 0 1-2.5 2.5H17" />
+                <rect x="3" y="7" width="14" height="14" rx="2.5" />
+                <path d="M6.5 11h7M6.5 14.5h5" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="compact-grid">
@@ -127,7 +129,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
                     <span>
                       <strong>{player.name}</strong>
                       <small className="block text-muted">
-                        {player.is_host ? 'Room owner' : isMe ? 'You' : 'Participant'}
+                        {player.is_host ? 'Room owner' : isMe ? 'You' : 'Field agent'}
                       </small>
                     </span>
                     <span className={`status-pill ${player.is_ready ? 'ready' : ''}`}>
@@ -157,17 +159,17 @@ export default function LobbyRoom({ room }: { room: Room }) {
                 <div className="host-readiness">
                   <span>
                     <strong>{readyCount}</strong>
-                    ready
+                    <small className="readiness-label">Cleared</small>
                   </span>
                   <span>
                     <strong>{waitingCount}</strong>
-                    waiting
+                    <small className="readiness-label">Standby</small>
                   </span>
                 </div>
 
                 <div className="field-stack">
                   <label>
-                    <span className="case-label">Question pack</span>
+                    <span className="case-label control-label">Question pack</span>
                     <select
                       value={category}
                       onChange={(e) => handleCategoryChange(e.target.value)}
@@ -182,7 +184,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
                   </label>
 
                   <label>
-                    <span className="case-label">Rounds</span>
+                    <span className="case-label control-label">Rounds</span>
                     <select
                       value={totalRounds}
                       onChange={(e) => handleRoundsChange(Number(e.target.value))}
@@ -206,7 +208,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
                     await toggleReady(me.id, me.is_ready)
                     await loadPlayers()
                   }}
-                  className="secondary-action"
+                  className={`secondary-action ready-toggle ${me.is_ready ? 'is-ready' : ''}`}
                 >
                   {me.is_ready ? 'Cancel Ready' : 'Ready Up'}
                 </button>
