@@ -9,8 +9,8 @@ import { SpyFigures } from '@/app/components/SpyFigures'
 
 const AVATARS = [
   { src: '/avatars/detective1.png', name: 'Cipher', role: 'Detective', description: 'Calm reader. Good for careful players.' },
-  { src: '/avatars/detective2.jpeg', name: 'Vesper', role: 'Detective', description: 'Sharp eyes. Finds tiny lies.' },
-  { src: '/avatars/detective3.png', name: 'Knox', role: 'Detective', description: 'Quiet pressure. Lets others talk first.' },
+  { src: '/avatars/detective2.jpeg', name: 'Zing', role: 'Detective', description: 'Sharp eyes. Finds tiny lies.' },
+  { src: '/avatars/detective3.png', name: 'Johnny', role: 'Detective', description: 'Quiet pressure. Lets others talk first.' },
   { src: '/avatars/detective4.png', name: 'Mira', role: 'Detective', description: 'Fast instincts. Spots strange answers early.' },
   { src: '/avatars/detective5.png', name: 'Rook', role: 'Detective', description: 'Hard to fool. Plays the long game.' },
   { src: '/avatars/detective6.png', name: 'Shade', role: 'Detective', description: 'Low profile. Watches every vote.' },
@@ -40,6 +40,7 @@ export default function HomePage() {
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [avatar, setAvatar] = useState(AVATARS[0].src)
+  const [hoveredAvatar, setHoveredAvatar] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -139,21 +140,30 @@ export default function HomePage() {
             <span className="case-label">Choose avatar</span>
             <div className="avatar-grid">
               {AVATARS.map((item) => (
-                <button
+                <div
+                  className="avatar-option"
+                  data-hovered={hoveredAvatar === item.src}
                   key={item.src}
-                  type="button"
-                  className="agent-choice avatar-tile"
-                  data-active={avatar === item.src}
-                  aria-label={`Choose ${item.name}, ${item.role}`}
-                  onClick={() => setAvatar(item.src)}
+                  onMouseEnter={() => setHoveredAvatar(item.src)}
+                  onMouseLeave={() => setHoveredAvatar((current) => current === item.src ? null : current)}
                 >
-                  <Image src={item.src} alt="" fill sizes="72px" className="avatar-image" unoptimized />
-                  <span className="avatar-popover">
+                  <button
+                    type="button"
+                    className="agent-choice avatar-tile"
+                    data-active={avatar === item.src}
+                    aria-label={`Choose ${item.name}, ${item.role}`}
+                    onClick={() => setAvatar(item.src)}
+                  >
+                    <span className="avatar-preview" aria-hidden="true">
+                      <Image src={item.src} alt="" fill sizes="104px" className="avatar-image" unoptimized />
+                    </span>
+                  </button>
+                  <span className="avatar-popover" aria-hidden="true">
                     <strong>{item.name}</strong>
                     <small>{item.role}</small>
                     <em>{item.description}</em>
                   </span>
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -165,7 +175,7 @@ export default function HomePage() {
             disabled={loading}
             className="primary-action full"
           >
-            {loading ? 'Working...' : mode === 'create' ? 'Create Room' : 'Join Room'}
+            {loading ? 'Preparing case...' : mode === 'create' ? 'Create Room' : 'Join Room'}
           </button>
         </div>
       </section>
