@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { MutableRefObject } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { getUserId } from '@/lib/auth'
+import Link from 'next/link'
+import { getRoomPlayerId, getUserId } from '@/lib/auth'
 import { submitAnswer } from '@/lib/answers'
 import { submitVote } from '@/lib/votes'
 import { markSkipDiscussion } from '@/lib/rounds'
+import { getGameStateAction } from '@/app/actions/game-state'
 import {
   advanceToDiscussion,
   advanceToVoting,
@@ -16,21 +18,14 @@ import {
   endGame,
   resetGame,
 } from '@/app/actions/game'
+import { AvatarBadge } from '@/app/components/AvatarBadge'
 import type { Room, Player, Round, Question, Answer, Vote } from '@/lib/supabase/types'
 import Chat from '@/components/Chat'
 
-function Avatar({ src }: { src: string }) {
-  return (
-    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden shrink-0">
-      <img src={src} alt="Player avatar" className="w-full h-full object-cover" />
-    </div>
-  )
-}
-
 export default function GameRoom({ room }: { room: Room }) {
-  const supabase = createClient()
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
+  const [roomPlayerId, setRoomPlayerId] = useState<string | null>(null)
   const [round, setRound] = useState<Round | null>(null)
   const [question, setQuestion] = useState<Question | null>(null)
   const [mainQuestion, setMainQuestion] = useState<Question | null>(null)
@@ -43,110 +38,47 @@ export default function GameRoom({ room }: { room: Room }) {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [roomStatus, setRoomStatus] = useState(room.status)
   const [totalRounds, setTotalRounds] = useState(room.total_rounds)
-  const [autoAdvanceIn, setAutoAdvanceIn] = useState(5)
   const advancing = useRef(false)
   const nextRoundStarting = useRef(false)
 
   useEffect(() => {
     getUserId().then(setUserId)
-  }, [])
+    const timeout = window.setTimeout(() => setRoomPlayerId(getRoomPlayerId(room.code)), 0)
+    return () => window.clearTimeout(timeout)
+  }, [room.code])
 
   async function loadAll() {
     if (!userId) return
 
-    const { data: currentRoom } = await supabase
-      .from('rooms')
-      .select('status, total_rounds')
-      .eq('id', room.id)
-      .single()
+    const state = await getGameStateAction(room.id, userId, roomPlayerId)
 
-    const { data: rounds } = await supabase
-      .from('rounds')
-      .select()
-      .eq('room_id', room.id)
-      .order('round_number', { ascending: false })
-      .limit(1)
-    const currentRound = rounds?.[0] ?? null
-
-    const { data: allPlayers } = await supabase
-      .from('players')
-      .select()
-      .eq('room_id', room.id)
-      .order('created_at', { ascending: true })
-
-    const player = allPlayers?.find((p) => p.user_id === userId) ?? null
-
-    let newQuestion: Question | null = null
-    let newMainQuestion: Question | null = null
-    let newImposterQuestion: Question | null = null
-    let newAnswers: Answer[] = []
-    let newVotes: Vote[] = []
-    let newSkips: string[] = []
-
-    if (currentRound && player) {
-      const isImposter = currentRound.imposter_player_id === player.id
-      const myQuestionId = isImposter ? currentRound.imposter_question_id : currentRound.question_id
-
-      const [qRes, mqRes, iqRes, answersRes, votesRes, skipsRes] = await Promise.all([
-        supabase.from('questions').select().eq('id', myQuestionId).single(),
-        supabase.from('questions').select().eq('id', currentRound.question_id).single(),
-        supabase.from('questions').select().eq('id', currentRound.imposter_question_id).single(),
-        supabase.from('answers').select().eq('round_id', currentRound.id),
-        supabase.from('votes').select().eq('round_id', currentRound.id),
-        supabase.from('discussion_skips').select('player_id').eq('round_id', currentRound.id),
-      ])
-
-      newQuestion = qRes.data
-      newMainQuestion = mqRes.data
-      newImposterQuestion = iqRes.data
-      newAnswers = answersRes.data ?? []
-      newVotes = votesRes.data ?? []
-      newSkips = (skipsRes.data ?? []).map((s) => s.player_id)
+    if (state.room) {
+      setRoomStatus(state.room.status)
+      setTotalRounds(state.room.total_rounds)
+      if (state.room.status === 'lobby') router.push(`/lobby/${room.code}`)
     }
-
-    if (currentRoom) {
-      setRoomStatus(currentRoom.status)
-      setTotalRounds(currentRoom.total_rounds)
-    }
-    setRound(currentRound)
-    if (allPlayers) setPlayers(allPlayers)
-    setMe(player)
-    setQuestion(newQuestion)
-    setMainQuestion(newMainQuestion)
-    setImposterQuestion(newImposterQuestion)
-    setAnswers(newAnswers)
-    setVotes(newVotes)
-    setSkips(newSkips)
+    setRound(state.round)
+    setPlayers(state.players)
+    setMe(state.me)
+    setQuestion(state.question)
+    setMainQuestion(state.mainQuestion)
+    setImposterQuestion(state.imposterQuestion)
+    setAnswers(state.answers)
+    setVotes(state.votes)
+    setSkips(state.skips)
   }
 
   useEffect(() => {
     if (!userId) return
-    loadAll()
-
-    const channel = supabase
-      .channel(`game-${room.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds', filter: `room_id=eq.${room.id}` }, loadAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` }, loadAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'answers' }, loadAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'votes' }, loadAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_skips' }, loadAll)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` },
-        (payload) => {
-          loadAll()
-          if (payload.new.status === 'lobby') {
-            router.push(`/lobby/${room.code}`)
-          }
-        }
-      )
-      .subscribe()
+    const timeout = window.setTimeout(loadAll, 0)
+    const interval = window.setInterval(loadAll, 1800)
 
     return () => {
-      supabase.removeChannel(channel)
+      window.clearTimeout(timeout)
+      window.clearInterval(interval)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room.id, userId])
+  }, [room.id, roomPlayerId, userId])
 
   useEffect(() => {
     advancing.current = false
@@ -156,6 +88,7 @@ export default function GameRoom({ room }: { room: Room }) {
   const allAnswered = players.length > 0 && players.every((p) => answers.some((a) => a.player_id === p.id))
   const allVoted = players.length > 0 && players.every((p) => votes.some((v) => v.voter_id === p.id))
   const isHost = me?.is_host ?? false
+  const roundSoundResult = getRoundSoundResult(round, votes, me)
 
   useEffect(() => {
     if (round?.phase === 'answering' && allAnswered && isHost && !advancing.current) {
@@ -167,9 +100,7 @@ export default function GameRoom({ room }: { room: Room }) {
   useEffect(() => {
     if (round?.phase === 'question_reveal' && isHost && !advancing.current) {
       advancing.current = true
-      const timeout = setTimeout(() => {
-        advanceToDiscussion(round.id)
-      }, 12000)
+      const timeout = setTimeout(() => advanceToDiscussion(round.id), 12000)
       return () => clearTimeout(timeout)
     }
   }, [round?.phase, isHost, round?.id])
@@ -185,10 +116,7 @@ export default function GameRoom({ room }: { room: Room }) {
     }
 
     const interval = setInterval(() => {
-      const remaining = Math.max(
-        0,
-        Math.ceil((new Date(round.discussion_ends_at!).getTime() - Date.now()) / 1000)
-      )
+      const remaining = Math.max(0, Math.ceil((new Date(round.discussion_ends_at!).getTime() - Date.now()) / 1000))
       setSecondsLeft(remaining)
       if (remaining === 0) {
         clearInterval(interval)
@@ -198,6 +126,7 @@ export default function GameRoom({ room }: { room: Room }) {
         }
       }
     }, 500)
+
     return () => clearInterval(interval)
   }, [round?.phase, round?.discussion_ends_at, isHost, round?.id, players, skips])
 
@@ -208,35 +137,39 @@ export default function GameRoom({ room }: { room: Room }) {
     }
   }, [round?.phase, allVoted, isHost, round?.id])
 
-  useEffect(() => {
-    if (round?.phase !== 'reveal' || !isHost) return
-    setAutoAdvanceIn(5)
-    const countdown = setInterval(() => {
-      setAutoAdvanceIn((s) => Math.max(0, s - 1))
-    }, 1000)
-    const timeout = setTimeout(() => {
-      if (!nextRoundStarting.current) {
-        nextRoundStarting.current = true
-        const isLastRound = round.round_number >= totalRounds
-        if (isLastRound) {
-          endGame(room.id)
-        } else {
-          startRound(room.id)
-        }
-      }
-    }, 5000)
-    return () => {
-      clearInterval(countdown)
-      clearTimeout(timeout)
-    }
-  }, [round?.phase, round?.id, isHost, totalRounds])
+  useResultSound(roundSoundResult, round?.phase === 'reveal' ? round.id : null)
 
   if (!round || !me || !question) {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-muted">Loading round...</p>
+      <main className="spy-screen">
+        <div className="screen-shadows" aria-hidden="true" />
+        <section className="game-panel">
+          <p className="case-label">Loading round</p>
+          <p className="quiet-copy mt-2">Preparing the case file...</p>
+        </section>
       </main>
     )
+  }
+
+  const myAnswer = answers.find((answer) => answer.player_id === me.id)
+  const myVote = votes.find((vote) => vote.voter_id === me.id)
+  const iSkipped = skips.includes(me.id)
+
+  async function handleAnswer(answeredPlayer: Player) {
+    if (myAnswer) return
+    await submitAnswer(round!.id, me!.id, answeredPlayer.id, answeredPlayer.name)
+    await loadAll()
+  }
+
+  async function handleVote(votedForId: string) {
+    await submitVote(round!.id, me!.id, votedForId)
+    await loadAll()
+  }
+
+  async function handleSkip() {
+    if (iSkipped) return
+    await markSkipDiscussion(round!.id, me!.id)
+    await loadAll()
   }
 
   if (roomStatus === 'ended') {
@@ -246,254 +179,302 @@ export default function GameRoom({ room }: { room: Room }) {
     }
 
     return (
-      <main className="flex min-h-screen flex-col items-center gap-6 px-6 py-12 text-center">
-        <h1 className="text-3xl font-black text-evidence-gold">Case Closed — Final Report</h1>
-        <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
-          {[...players].sort((a, b) => b.score - a.score).map((p, i) => (
-            <div
-              key={p.id}
-              className={`flex justify-between items-center rounded-xl px-4 py-3 border ${
-                i === 0 ? 'bg-evidence-gold/20 border-evidence-gold' : 'bg-surface border-white/10'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Avatar src={p.avatar} />
-                <span className="text-paper font-medium">
-                  {i === 0 && '🏆 '}{p.name}
-                </span>
-              </div>
-              <span className="text-evidence-gold font-bold">{p.score} pts</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="w-full max-w-sm flex flex-col gap-3 mt-6">
-          {isHost && (
-            <button
-              onClick={handlePlayAgain}
-              className="rounded-2xl bg-case-red px-6 py-4 font-bold text-paper"
-            >
-              Stay &amp; Play Again
-            </button>
-          )}
-          <a href="/" className="text-muted text-sm">Back to Home</a>
-        </div>
+      <main className="spy-screen">
+        <div className="screen-shadows" aria-hidden="true" />
+        <section className="game-panel">
+          <p className="case-label">Final report</p>
+          <h1 className="brand-title text-[clamp(2.2rem,8vw,4rem)]">Case Closed</h1>
+          <Scoreboard players={players} />
+          <div className="button-stack mx-auto mt-5">
+            {isHost && (
+              <button onClick={handlePlayAgain} className="primary-action">
+                Stay and Play Again
+              </button>
+            )}
+            <Link href="/" className="text-button grid place-items-center">
+              Back to Home
+            </Link>
+          </div>
+        </section>
       </main>
     )
   }
 
-  const myAnswer = answers.find((a) => a.player_id === me.id)
-  const myVote = votes.find((v) => v.voter_id === me.id)
-  const iSkipped = skips.includes(me.id)
+  return (
+    <main className="spy-screen">
+      <div className="screen-shadows" aria-hidden="true" />
+      <section className="game-panel">
+        <p className="case-label">
+          Round {round.round_number} / {totalRounds}
+        </p>
 
-  async function handleAnswer(answeredPlayer: Player) {
-    if (myAnswer) return
-    await submitAnswer(round!.id, me!.id, answeredPlayer.id, answeredPlayer.name)
-  }
+        {round.phase === 'answering' && (
+          <div className="game-stack mx-auto">
+            <h1 className="question-text">{question.text}</h1>
+            {!myAnswer ? (
+              <>
+                <p className="quiet-copy mx-auto">Choose one player. Their name becomes your answer.</p>
+                <div className="choice-grid">
+                  {players.map((player) => (
+                    <button key={player.id} onClick={() => handleAnswer(player)} className="choice-row">
+                      <AvatarBadge avatar={player.avatar} name={player.name} />
+                      <strong>{player.name}</strong>
+                      <small>Choose</small>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="quiet-copy mx-auto">
+                You chose {myAnswer.text}. Waiting for others ({answers.length}/{players.length} answered).
+              </p>
+            )}
+          </div>
+        )}
 
-  async function handleVote(votedForId: string) {
-    await submitVote(round!.id, me!.id, votedForId)
-  }
+        {round.phase === 'question_reveal' && (
+          <div className="game-stack mx-auto">
+            {round.imposter_player_id === me.id && (
+              <div className="stamp mx-auto">You are the spy</div>
+            )}
+            <p className="case-label">The real question was</p>
+            <h1 className="question-text">{mainQuestion?.text}</h1>
+            <div className="answer-list">
+              {players.map((player) => {
+                const answer = answers.find((item) => item.player_id === player.id)
+                return (
+                  <div key={player.id} className="player-row">
+                    <AvatarBadge avatar={player.avatar} name={player.name} />
+                    <strong>{player.name}</strong>
+                    <span className="status-pill">{answer?.text ?? '...'}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
-  async function handleSkip() {
-    if (iSkipped) return
-    await markSkipDiscussion(round!.id, me!.id)
+        {round.phase === 'discussion' && (
+          <div className="game-stack mx-auto">
+            <p className="case-label">Discussion</p>
+            <div className="big-timer">{secondsLeft}s</div>
+            <p className="quiet-copy mx-auto">Talk it out. Who answered like they had the wrong question?</p>
+
+            <div className="answer-list">
+              <p className="case-label text-left">Answers on record</p>
+              {players.map((player) => {
+                const answer = answers.find((item) => item.player_id === player.id)
+                return (
+                  <div key={player.id} className="player-row">
+                    <AvatarBadge avatar={player.avatar} name={player.name} />
+                    <strong>{player.name}</strong>
+                    <span className="status-pill">{answer?.text ?? '...'}</span>
+                  </div>
+                )
+              })}
+            </div>
+
+            <button onClick={handleSkip} disabled={iSkipped} className="secondary-action">
+              {iSkipped ? `Waiting (${skips.length}/${players.length})` : 'Skip Discussion'}
+            </button>
+          </div>
+        )}
+
+        {round.phase === 'voting' && (
+          <div className="game-stack mx-auto">
+            <p className="case-label">Final call</p>
+            <h1 className="question-text">Who is the spy?</h1>
+            <div className="choice-grid">
+              {players.map((player) => (
+                <button
+                  key={player.id}
+                  onClick={() => handleVote(player.id)}
+                  disabled={allVoted}
+                  className={`choice-row ${myVote?.voted_for_id === player.id ? 'selected' : ''}`}
+                >
+                  <AvatarBadge avatar={player.avatar} name={player.name} />
+                  <strong>{player.name}</strong>
+                  <span className="vote-action">{myVote?.voted_for_id === player.id ? 'Vote locked' : 'Vote'}</span>
+                </button>
+              ))}
+            </div>
+            <p className="quiet-copy mx-auto">
+              {allVoted ? 'Everyone has voted.' : `${votes.length}/${players.length} votes locked.`}
+            </p>
+          </div>
+        )}
+
+        {round.phase === 'reveal' && (
+          <RevealPhase
+            roomId={room.id}
+            round={round}
+            players={players}
+            votes={votes}
+            imposterQuestion={imposterQuestion}
+            isHost={isHost}
+            totalRounds={totalRounds}
+            nextRoundStartingRef={nextRoundStarting}
+          />
+        )}
+      </section>
+
+      <Chat roomId={room.id} me={me} players={players} />
+    </main>
+  )
+}
+
+function getRoundSoundResult(round: Round | null, votes: Vote[], me: Player | null): 'win' | 'lose' | null {
+  if (!round || round.phase !== 'reveal' || !me) return null
+
+  const tally: Record<string, number> = {}
+  for (const vote of votes) tally[vote.voted_for_id] = (tally[vote.voted_for_id] ?? 0) + 1
+
+  const maxVotes = Math.max(0, ...Object.values(tally))
+  if (maxVotes === 0) return null
+
+  const topVoted = Object.entries(tally).filter(([, count]) => count === maxVotes).map(([id]) => id)
+  const imposterCaught = topVoted.length === 1 && topVoted[0] === round.imposter_player_id
+  const iAmTraitor = me.id === round.imposter_player_id
+  const iWonRound = imposterCaught ? !iAmTraitor : iAmTraitor
+
+  return iWonRound ? 'win' : 'lose'
+}
+
+function useResultSound(result: 'win' | 'lose' | null, soundKey: string | null) {
+  const lastPlayed = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!result || !soundKey || lastPlayed.current === soundKey) return
+    lastPlayed.current = soundKey
+    playResultSound(result)
+  }, [result, soundKey])
+}
+
+function playResultSound(result: 'win' | 'lose') {
+  const AudioContextClass = window.AudioContext || (window as WindowWithWebAudio).webkitAudioContext
+  if (!AudioContextClass) return
+
+  const context = new AudioContextClass()
+  const master = context.createGain()
+  master.gain.setValueAtTime(0.0001, context.currentTime)
+  master.gain.exponentialRampToValueAtTime(0.28, context.currentTime + 0.03)
+  master.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 1.25)
+  master.connect(context.destination)
+
+  const notes = result === 'win'
+    ? [523.25, 659.25, 783.99, 1046.5]
+    : [392, 329.63, 261.63]
+
+  notes.forEach((frequency, index) => {
+    const oscillator = context.createOscillator()
+    const gain = context.createGain()
+    const startsAt = context.currentTime + index * (result === 'win' ? 0.13 : 0.2)
+    const endsAt = startsAt + (result === 'win' ? 0.22 : 0.34)
+
+    oscillator.type = result === 'win' ? 'triangle' : 'sine'
+    oscillator.frequency.setValueAtTime(frequency, startsAt)
+    gain.gain.setValueAtTime(0.0001, startsAt)
+    gain.gain.exponentialRampToValueAtTime(result === 'win' ? 0.45 : 0.32, startsAt + 0.03)
+    gain.gain.exponentialRampToValueAtTime(0.0001, endsAt)
+
+    oscillator.connect(gain)
+    gain.connect(master)
+    oscillator.start(startsAt)
+    oscillator.stop(endsAt + 0.04)
+  })
+
+  window.setTimeout(() => context.close(), 1400)
+}
+
+type WindowWithWebAudio = Window & {
+  webkitAudioContext?: typeof AudioContext
+}
+
+function RevealPhase({
+  roomId,
+  round,
+  players,
+  votes,
+  imposterQuestion,
+  isHost,
+  totalRounds,
+  nextRoundStartingRef,
+}: {
+  roomId: string
+  round: Round
+  players: Player[]
+  votes: Vote[]
+  imposterQuestion: Question | null
+  isHost: boolean
+  totalRounds: number
+  nextRoundStartingRef: MutableRefObject<boolean>
+}) {
+  const imposter = players.find((player) => player.id === round.imposter_player_id)
+  const tally: Record<string, number> = {}
+  for (const vote of votes) tally[vote.voted_for_id] = (tally[vote.voted_for_id] ?? 0) + 1
+
+  const maxVotes = Math.max(0, ...Object.values(tally))
+  const topVoted = Object.entries(tally).filter(([, count]) => count === maxVotes).map(([id]) => id)
+  const imposterCaught = topVoted.length === 1 && topVoted[0] === round.imposter_player_id
+  const isLastRound = round.round_number >= totalRounds
+
+  async function handleNextOrEnd() {
+    if (nextRoundStartingRef.current) return
+    nextRoundStartingRef.current = true
+    if (isLastRound) await endGame(roomId)
+    else await startRound(roomId)
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-6 px-6 py-12 text-center">
-      <p className="case-label">Round {round.round_number}</p>
+    <div className="game-stack mx-auto">
+      <div className={`stamp mx-auto ${imposterCaught ? '' : 'green'}`}>
+        {imposterCaught ? 'Traitor caught' : 'Traitor escaped'}
+      </div>
+      <p className="case-label">Traitor was</p>
+      <div className="reveal-name">{imposter?.name ?? 'Unknown'}</div>
 
-      {round.phase === 'answering' && (
-        <>
-          <h1 className="text-2xl font-bold text-paper">Your Question</h1>
-          <p className="text-3xl font-black text-evidence-gold max-w-sm">{question.text}</p>
-
-          {!myAnswer ? (
-            <div className="w-full max-w-sm flex flex-col gap-3 mt-4">
-              {players.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleAnswer(p)}
-                  className="flex items-center gap-3 rounded-xl bg-surface px-4 py-4 font-medium text-paper border border-white/10"
-                >
-                  <Avatar src={p.avatar} />
-                  {p.name}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted mt-4">
-              Waiting for others ({answers.length}/{players.length} answered)...
-            </p>
-          )}
-        </>
-      )}
-
-      {round.phase === 'question_reveal' && (
-        <>
-          {round.imposter_player_id === me.id && (
-            <div className="bg-case-red/20 border border-case-red rounded-xl px-4 py-3 max-w-sm">
-              <p className="text-case-red font-bold">You were the Imposter!</p>
-              <p className="text-paper/80 text-sm mt-1">
-                You answered a different question. Try to blend in during discussion.
-              </p>
-            </div>
-          )}
-
-          <h1 className="text-2xl font-bold text-paper">The Real Question Was...</h1>
-          <p className="text-3xl font-black text-evidence-gold max-w-sm">
-            {mainQuestion?.text}
-          </p>
-          <p className="text-muted mt-2">Look back at everyone&apos;s answers. Who seems off?</p>
-
-          <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
-            {players.map((p) => {
-              const a = answers.find((a) => a.player_id === p.id)
-              return (
-                <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <div className="flex items-center gap-2">
-                    <Avatar src={p.avatar} />
-                    <span className="text-paper">{p.name}</span>
-                  </div>
-                  <span className="text-muted">{a?.text ?? '...'}</span>
-                </div>
-              )
-            })}
+      <div className="answer-list">
+        <p className="case-label text-left">Vote breakdown</p>
+        {players.map((player) => (
+          <div key={player.id} className="vote-row">
+            <AvatarBadge avatar={player.avatar} name={player.name} />
+            <strong>{player.name}</strong>
+            <span className="status-pill">{tally[player.id] ?? 0} votes</span>
           </div>
-        </>
+        ))}
+      </div>
+
+      <div className="imposter-question-card">
+        <p className="case-label">Traitor question</p>
+        <p>{imposterQuestion?.text ?? 'Unknown'}</p>
+      </div>
+
+      <Scoreboard players={players} />
+
+      {isHost && (
+        <button onClick={handleNextOrEnd} className="primary-action">
+          {isLastRound ? 'End Game' : 'Start Next Round'}
+        </button>
       )}
+    </div>
+  )
+}
 
-      {round.phase === 'discussion' && (
-        <>
-          <h1 className="text-2xl font-bold text-paper">Discuss!</h1>
-          <p className="text-5xl font-black text-evidence-gold" style={{ fontFamily: 'var(--font-mono)' }}>
-            {secondsLeft}s
-          </p>
-          <p className="text-muted">Talk it out. Who do you think is the Imposter?</p>
-
-          <button
-            onClick={handleSkip}
-            disabled={iSkipped}
-            className="rounded-2xl bg-surface px-6 py-4 font-bold text-paper border border-white/10 disabled:opacity-40 mt-4"
-          >
-            {iSkipped ? `Waiting for others (${skips.length}/${players.length})...` : 'Skip Discussion'}
-          </button>
-        </>
-      )}
-
-      {round.phase === 'voting' && (() => {
-        const votingLocked = allVoted
-
-        return (
-          <>
-            <h1 className="text-2xl font-bold text-paper">Who is the Imposter?</h1>
-
-            <div className="w-full max-w-sm flex flex-col gap-3 mt-4">
-              {players.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => handleVote(p.id)}
-                  disabled={votingLocked}
-                  className={`flex items-center gap-3 rounded-xl px-4 py-4 font-medium border transition ${
-                    myVote?.voted_for_id === p.id
-                      ? 'bg-case-red border-case-red text-paper'
-                      : 'bg-surface border-white/10 text-paper disabled:opacity-40'
-                  }`}
-                >
-                  <Avatar src={p.avatar} />
-                  {p.name}
-                </button>
-              ))}
-            </div>
-
-            <p className="text-muted mt-4">
-              {votingLocked
-                ? 'Everyone has voted!'
-                : myVote
-                  ? `Vote locked in — tap another name to change it (${votes.length}/${players.length} voted)`
-                  : 'Tap a player to vote'}
-            </p>
-          </>
-        )
-      })()}
-
-      {round.phase === 'reveal' && (() => {
-        const imposter = players.find((p) => p.id === round.imposter_player_id)
-        const tally: Record<string, number> = {}
-        for (const v of votes) {
-          tally[v.voted_for_id] = (tally[v.voted_for_id] ?? 0) + 1
-        }
-        const maxVotes = Math.max(0, ...Object.values(tally))
-        const topVoted = Object.entries(tally).filter(([, c]) => c === maxVotes).map(([id]) => id)
-        const imposterCaught = topVoted.length === 1 && topVoted[0] === round.imposter_player_id
-        const isLastRound = round.round_number >= totalRounds
-
-        async function handleNextOrEnd() {
-          if (nextRoundStarting.current) return
-          nextRoundStarting.current = true
-          if (isLastRound) {
-            await endGame(room.id)
-          } else {
-            await startRound(room.id)
-          }
-        }
-
-        return (
-          <>
-            <div className={`stamp ${imposterCaught ? '' : 'border-stamp-green text-stamp-green'}`}>
-              {imposterCaught ? 'Case Closed' : 'Suspect Escaped'}
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Avatar src={imposter?.avatar ?? '/avatars/detective1.png'} />
-              <p className="text-xl text-paper">
-                The Imposter was <span className="text-evidence-gold font-bold">{imposter?.name}</span>
-              </p>
-            </div>
-
-            <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
-              <p className="case-label text-left">Vote Breakdown</p>
-              {players.map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <div className="flex items-center gap-2">
-                    <Avatar src={p.avatar} />
-                    <span className="text-paper">{p.name}</span>
-                  </div>
-                  <span className="text-muted">{tally[p.id] ?? 0} votes</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="w-full max-w-sm mt-6">
-              <p className="case-label text-left mb-2">The Imposter&apos;s Question Was</p>
-              <p className="text-2xl font-black text-case-red">{imposterQuestion?.text}</p>
-            </div>
-
-            <div className="w-full max-w-sm flex flex-col gap-2 mt-6">
-              <p className="case-label text-left">Scoreboard</p>
-              {[...players].sort((a, b) => b.score - a.score).map((p) => (
-                <div key={p.id} className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10">
-                  <div className="flex items-center gap-2">
-                    <Avatar src={p.avatar} />
-                    <span className="text-paper">{p.name}</span>
-                  </div>
-                  <span className="text-evidence-gold font-bold">{p.score} pts</span>
-                </div>
-              ))}
-            </div>
-
-            {isHost && (
-              <button
-                onClick={handleNextOrEnd}
-                className="rounded-2xl bg-case-red px-6 py-4 font-bold text-paper mt-6 w-full max-w-sm"
-              >
-                {isLastRound ? 'End Game' : 'Next Round'} ({autoAdvanceIn}s)
-              </button>
-            )}
-          </>
-        )
-      })()}
-      <Chat roomId={room.id} me={me} players={players} />
-    </main>
+function Scoreboard({ players }: { players: Player[] }) {
+  return (
+    <div className="score-list mt-5">
+      <p className="case-label text-left">Scoreboard</p>
+      {[...players].sort((a, b) => b.score - a.score).map((player, index) => (
+        <div key={player.id} className={`score-row scoreboard-row ${index === 0 ? 'score-leader' : ''}`}>
+          <span className="rank-medal">#{index + 1}</span>
+          <AvatarBadge avatar={player.avatar} name={player.name} />
+          <span className="score-name">
+            <strong>{player.name}</strong>
+            <small>{index === 0 ? 'Current lead' : 'Agent score'}</small>
+          </span>
+          <span className="score-points">{player.score}<small>pts</small></span>
+        </div>
+      ))}
+    </div>
   )
 }

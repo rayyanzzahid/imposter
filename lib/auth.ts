@@ -1,14 +1,19 @@
-import { createClient } from './supabase/client'
+const USER_ID_KEY = 'find-the-traitor-user-id'
+const PLAYER_ID_PREFIX = 'find-the-traitor-player-id-'
 
 export async function getUserId(): Promise<string> {
-  const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const savedId = window.localStorage.getItem(USER_ID_KEY)
+  if (savedId) return savedId
 
-  if (session?.user) {
-    return session.user.id
-  }
+  const userId = crypto.randomUUID()
+  window.localStorage.setItem(USER_ID_KEY, userId)
+  return userId
+}
 
-  const { data, error } = await supabase.auth.signInAnonymously()
-  if (error || !data.user) throw new Error('Could not start session')
-  return data.user.id
+export function getRoomPlayerId(roomCode: string): string | null {
+  return window.localStorage.getItem(`${PLAYER_ID_PREFIX}${roomCode.toUpperCase()}`)
+}
+
+export function setRoomPlayerId(roomCode: string, playerId: string) {
+  window.localStorage.setItem(`${PLAYER_ID_PREFIX}${roomCode.toUpperCase()}`, playerId)
 }

@@ -1,14 +1,10 @@
 import type { Metadata } from 'next'
+import { LiveBackdrop } from './components/LiveBackdrop'
 import './globals.css'
-import { Inter, JetBrains_Mono, Oswald } from 'next/font/google'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-body' })
-const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-mono' })
-const oswald = Oswald({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-display' })
 
 export const metadata: Metadata = {
-  title: 'Imposter',
-  description: 'A party game about your friend group',
+  title: 'Find The Traitor',
+  description: 'A dark social deduction party game',
 }
 
 export default function RootLayout({
@@ -17,9 +13,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} ${mono.variable} ${oswald.variable} font-sans`}>{children}</body>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <LiveBackdrop />
+        {children}
+      </body>
     </html>
   )
 }
-

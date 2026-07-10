@@ -1,27 +1,19 @@
-import { createClient } from './supabase/client'
+import { kickPlayerAction, leaveRoomAction, toggleReadyAction } from '@/app/actions/players'
 
 export async function toggleReady(playerId: string, isReady: boolean) {
-  const supabase = createClient()
-  const { error } = await supabase
-    .from('players')
-    .update({ is_ready: !isReady })
-    .eq('id', playerId)
-  if (error) throw error
+  await toggleReadyAction(playerId, isReady)
 }
 
 export async function kickPlayer(playerId: string) {
-  const supabase = createClient()
-  const { error } = await supabase.from('players').delete().eq('id', playerId)
-  if (error) throw error
+  await kickPlayerAction(playerId)
 }
 
 export async function leaveRoom(playerId: string) {
-  const supabase = createClient()
-  const { error } = await supabase.from('players').delete().eq('id', playerId)
-  if (error) throw error
+  await leaveRoomAction(playerId)
 }
 
 export async function startGame(roomId: string) {
+  const { createClient } = await import('./supabase/client')
   const supabase = createClient()
   const { error } = await supabase
     .from('rooms')

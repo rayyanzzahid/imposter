@@ -1,32 +1,50 @@
 'use client'
 
+import Image from 'next/image'
 import { useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createRoom, joinRoom } from '@/lib/rooms'
-import { Logo } from '@/app/components/Logo'
+import { SpyFigures } from '@/app/components/SpyFigures'
 
 const AVATARS = [
-  '/avatars/detective1.png',
-  '/avatars/detective2.jpeg',
-  '/avatars/detective3.png',
-  '/avatars/detective4.png',
-  '/avatars/detective5.png',
-  '/avatars/detective6.png',
-  '/avatars/traitor1.jpeg',
-  // add more paths here as you add files, e.g. '/avatars/detective2.png',
+  { src: '/avatars/detective1.png', name: 'Cipher', role: 'Detective', description: 'Calm reader. Good for careful players.' },
+  { src: '/avatars/detective2.jpeg', name: 'Vesper', role: 'Detective', description: 'Sharp eyes. Finds tiny lies.' },
+  { src: '/avatars/detective3.png', name: 'Knox', role: 'Detective', description: 'Quiet pressure. Lets others talk first.' },
+  { src: '/avatars/detective4.png', name: 'Mira', role: 'Detective', description: 'Fast instincts. Spots strange answers early.' },
+  { src: '/avatars/detective5.png', name: 'Rook', role: 'Detective', description: 'Hard to fool. Plays the long game.' },
+  { src: '/avatars/detective6.png', name: 'Shade', role: 'Detective', description: 'Low profile. Watches every vote.' },
+  { src: '/avatars/traitor1.jpeg', name: 'Ghost', role: 'Traitor', description: 'Silent operator. Perfect for bluffing.' },
+  { src: '/avatars/traitor2.jpeg', name: 'Noir', role: 'Traitor', description: 'Smooth talker. Turns suspicion away.' },
+  { src: '/avatars/traitor3.jpeg', name: 'Hex', role: 'Traitor', description: 'Makes weird answers sound normal.' },
+  { src: '/avatars/traitor4.jpeg', name: 'Wraith', role: 'Traitor', description: 'Cold nerves. Survives under pressure.' },
+  { src: '/avatars/traitor5.jpeg', name: 'Crow', role: 'Traitor', description: 'Lets the room accuse itself.' },
+  { src: '/avatars/traitor6.jpeg', name: 'Silk', role: 'Traitor', description: 'Soft voice. Dangerous cover story.' },
 ]
+
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object') {
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return fallback
+    }
+  }
+  return error ? String(error) : fallback
+}
 
 export default function HomePage() {
   const router = useRouter()
-  const [mode, setMode] = useState<'idle' | 'create' | 'join'>('idle')
+  const [mode, setMode] = useState<'create' | 'join'>('create')
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
+  const [avatar, setAvatar] = useState(AVATARS[0].src)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [avatar, setAvatar] = useState(AVATARS[0])
 
   async function handleCreate() {
-    if (!name.trim()) return setError('Enter your name')
+    if (!name.trim()) return setError('Enter your name first')
     setLoading(true)
     setError('')
 
@@ -34,14 +52,15 @@ export default function HomePage() {
       const roomCode = await createRoom(name.trim(), avatar)
       router.push(`/lobby/${roomCode}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
+      console.error('Create room failed', e)
+      setError(errorMessage(e, 'Could not create room. Check Supabase setup.'))
       setLoading(false)
     }
   }
 
   async function handleJoin() {
-    if (!name.trim()) return setError('Enter your name')
-    if (!code.trim()) return setError('Enter a room code')
+    if (!name.trim()) return setError('Enter your name first')
+    if (!code.trim()) return setError('Enter the room code')
     setLoading(true)
     setError('')
 
@@ -49,103 +68,107 @@ export default function HomePage() {
       const roomCode = await joinRoom(code.trim(), name.trim(), avatar)
       router.push(`/lobby/${roomCode}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Room not found')
+      console.error('Join room failed', e)
+      setError(errorMessage(e, 'Could not join room. Check the code and try again.'))
       setLoading(false)
     }
   }
 
+  function submitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return
+    if (mode === 'create') handleCreate()
+    else handleJoin()
+  }
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-8 px-6">
-      <div className="flex flex-col items-center gap-4">
-        <Logo size={64} />
-        <h1 className="headline-stamp text-5xl font-bold" data-text="IMPOSTER">
-          IMPOSTER
-        </h1>
-      </div>
+    <main className="spy-screen">
+      <div className="screen-shadows" aria-hidden="true" />
+      <section className="home-card">
+        <p className="case-label">Classified party game</p>
+        <h1 className="brand-title">Find The Traitor</h1>
+        <p className="quiet-copy">Enter your name, create a room, and find the hidden traitor.</p>
 
-      {mode === 'idle' && (
-        <div className="fade-up flex flex-col gap-4 w-full max-w-xs">
-          <button
-            onClick={() => setMode('create')}
-            className="rounded-2xl bg-case-red px-6 py-4 font-bold text-paper transition hover:brightness-110 active:scale-95"
-          >
-            Create Room
-          </button>
+        <SpyFigures />
 
-          <button
-            onClick={() => setMode('join')}
-            className="rounded-2xl bg-surface px-6 py-4 font-bold text-paper border border-white/10 transition hover:border-white/20 active:scale-95"
-          >
-            Join Room
-          </button>
-        </div>
-      )}
-
-      {(mode === 'create' || mode === 'join') && (
-        <div className="fade-up flex flex-col gap-4 w-full max-w-xs items-center">
-          <div className="flex flex-col items-center gap-2">
-            <span className="case-label">Choose your avatar</span>
-
-            <div className="grid grid-cols-6 gap-2">
-              {AVATARS.map((src, i) => (
-                <button
-                key={src}
-                onClick={() => setAvatar(src)}
-                data-active={avatar === src}
-                className="avatar-tile"
-              >
-                <img src={src} alt="Avatar option" className="w-full h-full object-cover rounded-full" />
+        <div className="form-panel">
+          <div className="mode-switch" role="tablist" aria-label="Room action">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('create')
+                setError('')
+              }}
+              data-active={mode === 'create'}
+            >
+              Create
             </button>
-           ))}
-          </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('join')
+                setError('')
+              }}
+              data-active={mode === 'join'}
+            >
+              Join
+            </button>
           </div>
 
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                mode === 'create' ? handleCreate() : handleJoin()
-              }
-            }}
+            onKeyDown={submitOnEnter}
             placeholder="Your name"
-            className="w-full rounded-xl bg-surface px-4 py-3 text-paper outline-none border border-white/10 transition focus:border-evidence-gold"
+            className="spy-input"
+            autoComplete="nickname"
           />
 
           {mode === 'join' && (
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleJoin()
-              }}
+              onKeyDown={submitOnEnter}
               placeholder="Room code"
               maxLength={5}
-              className="w-full rounded-xl bg-surface px-4 py-3 text-paper outline-none border border-white/10 transition focus:border-evidence-gold tracking-widest text-center uppercase"
+              className="spy-input code-input"
+              autoComplete="off"
             />
           )}
 
-          {error && <p className="text-case-red text-sm">{error}</p>}
+          <div className="avatar-picker" aria-label="Choose avatar">
+            <span className="case-label">Choose avatar</span>
+            <div className="avatar-grid">
+              {AVATARS.map((item) => (
+                <button
+                  key={item.src}
+                  type="button"
+                  className="agent-choice avatar-tile"
+                  data-active={avatar === item.src}
+                  aria-label={`Choose ${item.name}, ${item.role}`}
+                  onClick={() => setAvatar(item.src)}
+                >
+                  <Image src={item.src} alt="" fill sizes="72px" className="avatar-image" unoptimized />
+                  <span className="avatar-popover">
+                    <strong>{item.name}</strong>
+                    <small>{item.role}</small>
+                    <em>{item.description}</em>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="error-copy">{error}</p>}
 
           <button
             onClick={mode === 'create' ? handleCreate : handleJoin}
             disabled={loading}
-            className="w-full rounded-2xl bg-case-red px-6 py-4 font-bold text-paper transition hover:brightness-110 active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+            className="primary-action full"
           >
-            {loading ? 'Loading...' : mode === 'create' ? 'Create' : 'Join'}
-          </button>
-
-          <button
-            onClick={() => {
-              setMode('idle')
-              setError('')
-            }}
-            className="text-muted text-sm transition hover:text-paper"
-          >
-            Back
+            {loading ? 'Working...' : mode === 'create' ? 'Create Room' : 'Join Room'}
           </button>
         </div>
-      )}
+      </section>
     </main>
   )
 }

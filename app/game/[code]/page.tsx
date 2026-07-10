@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import GameRoom from './GameRoom'
 
 export default async function GamePage({
@@ -8,7 +8,7 @@ export default async function GamePage({
   params: Promise<{ code: string }>
 }) {
   const { code } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: room } = await supabase
     .from('rooms')

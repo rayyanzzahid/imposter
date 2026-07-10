@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getChatMessagesAction } from '@/app/actions/chat'
 import { sendChatMessage } from '@/lib/chat'
 import type { Player, ChatMessage } from '@/lib/supabase/types'
 
@@ -14,37 +14,28 @@ export default function Chat({
   me: Player | null
   players: Player[]
 }) {
-  const supabase = createClient()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('chat_messages')
-        .select()
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: true })
-        .limit(200)
-      if (data) setMessages(data)
-    }
-    load()
+    let active = true
 
-    const channel = supabase
-      .channel(`chat-${roomId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
-        (payload) => setMessages((prev) => [...prev, payload.new as ChatMessage])
-      )
-      .subscribe()
+    async function loadMessages() {
+      const data = await getChatMessagesAction(roomId)
+      if (active) setMessages(data)
+    }
+
+    const timeout = window.setTimeout(loadMessages, 0)
+    const interval = window.setInterval(loadMessages, 1800)
 
     return () => {
-      supabase.removeChannel(channel)
+      active = false
+      window.clearTimeout(timeout)
+      window.clearInterval(interval)
     }
-  }, [roomId, supabase])
+  }, [roomId])
 
   useEffect(() => {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -55,67 +46,57 @@ export default function Chat({
     const text = input
     setInput('')
     await sendChatMessage(roomId, me.id, text)
+    const data = await getChatMessagesAction(roomId)
+    setMessages(data)
   }
 
   function playerFor(id: string) {
-    return players.find((p) => p.id === id)
+    return players.find((player) => player.id === id)
   }
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 rounded-full bg-case-red w-14 h-14 flex items-center justify-center text-2xl shadow-lg z-40"
-      >
-        💬
+      <button onClick={() => setOpen(true)} className="chat-toggle" aria-label="Open chat">
+        Chat
       </button>
     )
   }
 
   return (
-    <div className="fixed bottom-4 right-4 w-80 max-w-[90vw] h-96 bg-surface border border-white/10 rounded-2xl flex flex-col z-40 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-        <span className="case-label">Case Chat</span>
-        <button onClick={() => setOpen(false)} className="text-muted text-sm">✕</button>
+    <div className="chat-panel">
+      <div className="chat-header">
+        <span className="case-label">Case chat</span>
+        <button onClick={() => setOpen(false)} className="text-button">
+          Close
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-2">
-        {messages.map((m) => {
-          const sender = playerFor(m.player_id)
-          const isMe = m.player_id === me?.id
+      <div className="chat-messages">
+        {messages.map((message) => {
+          const sender = playerFor(message.player_id)
+          const isMe = message.player_id === me?.id
           return (
-            <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[75%] rounded-xl px-3 py-2 text-sm ${
-                  isMe ? 'bg-case-red text-paper' : 'bg-surface-elevated text-paper border border-white/10'
-                }`}
-              >
-                {!isMe && (
-                  <p className="text-xs text-muted mb-0.5">
-                    {sender?.avatar ?? '🕵️'} {sender?.name ?? 'Unknown'}
-                  </p>
-                )}
-                <p>{m.text}</p>
-              </div>
+            <div key={message.id} className={`chat-bubble ${isMe ? 'mine' : 'other'}`}>
+              {!isMe && <p className="case-label mb-1">{sender?.name ?? 'Unknown'}</p>}
+              <p>{message.text}</p>
             </div>
           )
         })}
         <div ref={bottomRef} />
       </div>
 
-      <div className="flex gap-2 p-3 border-t border-white/10">
+      <div className="chat-compose">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSend() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSend()
+          }}
           placeholder="Say something..."
           maxLength={300}
-          className="flex-1 rounded-lg bg-background px-3 py-2 text-paper text-sm outline-none border border-white/10 focus:border-evidence-gold"
+          className="spy-input chat-input"
         />
-        <button
-          onClick={handleSend}
-          className="rounded-lg bg-case-red px-3 py-2 text-sm font-bold text-paper"
-        >
+        <button onClick={handleSend} className="mini-action">
           Send
         </button>
       </div>

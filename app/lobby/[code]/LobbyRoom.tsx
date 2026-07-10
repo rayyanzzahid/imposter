@@ -1,86 +1,66 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { getUserId } from '@/lib/auth'
+import { getRoomPlayerId, getUserId } from '@/lib/auth'
 import { toggleReady, kickPlayer, leaveRoom } from '@/lib/players'
 import { setRoomCategory, setTotalRounds } from '@/lib/rooms'
 import { startRound } from '@/app/actions/game'
+import { getLobbyStateAction } from '@/app/actions/players'
+import { AvatarBadge } from '@/app/components/AvatarBadge'
 import type { Room, Player } from '@/lib/supabase/types'
 import Chat from '@/components/Chat'
 
 const CATEGORIES = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'general', label: 'Friend Group Classics' },
-  { value: 'school', label: 'School Days' },
-  { value: 'university', label: 'University Life' },
-  { value: 'gaming', label: 'Gamer Mode' },
-  { value: 'sports', label: 'Game Day' },
-  { value: 'office', label: 'Office Antics' },
-  { value: 'travel', label: 'On the Road' },
+  { value: 'all', label: 'All categories' },
+  { value: 'general', label: 'Friend group classics' },
+  { value: 'school', label: 'School days' },
+  { value: 'university', label: 'University life' },
+  { value: 'gaming', label: 'Gamer mode' },
+  { value: 'sports', label: 'Game day' },
+  { value: 'office', label: 'Office antics' },
+  { value: 'travel', label: 'On the road' },
 ]
-
-function Avatar({ src }: { src: string }) {
-  return (
-    <div className="w-8 h-8 rounded-full bg-surface border border-white/10 overflow-hidden shrink-0">
-      <img src={src} alt="Player avatar" className="w-full h-full object-cover" />
-    </div>
-  )
-}
 
 export default function LobbyRoom({ room }: { room: Room }) {
   const router = useRouter()
-  const supabase = createClient()
   const [players, setPlayers] = useState<Player[]>([])
   const [category, setCategory] = useState(room.category ?? 'all')
   const [totalRounds, setTotalRoundsState] = useState(room.total_rounds ?? 5)
   const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [roomPlayerId, setRoomPlayerIdState] = useState<string | null>(null)
 
   useEffect(() => {
     getUserId().then(setUserId)
-  }, [])
+    const timeout = window.setTimeout(() => setRoomPlayerIdState(getRoomPlayerId(room.code)), 0)
+    return () => window.clearTimeout(timeout)
+  }, [room.code])
 
-  const me = players.find((p) => p.user_id === userId)
+  const me = players.find((p) => p.id === roomPlayerId) ?? players.find((p) => p.user_id === userId)
   const isHost = me?.is_host ?? false
+  const readyCount = players.filter((p) => p.is_ready).length
+  const waitingCount = Math.max(0, players.length - readyCount)
+
+  const loadPlayers = useCallback(async () => {
+    const data = await getLobbyStateAction(room.id)
+    setPlayers(data.players)
+    if (data.status === 'playing') router.push(`/game/${room.code}`)
+  }, [room.id, room.code, router])
 
   useEffect(() => {
     if (!userId) return
 
-    async function loadPlayers() {
-      const { data } = await supabase
-        .from('players')
-        .select()
-        .eq('room_id', room.id)
-        .order('created_at', { ascending: true })
-      if (data) setPlayers(data)
-    }
-    loadPlayers()
+    const timeout = window.setTimeout(loadPlayers, 0)
+    return () => window.clearTimeout(timeout)
+  }, [loadPlayers, userId])
 
-    const channel = supabase
-      .channel(`room-${room.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` },
-        () => loadPlayers()
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` },
-        (payload) => {
-          if (payload.new.status === 'playing') {
-            router.push(`/game/${room.code}`)
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [room.id, room.code, router, supabase, userId])
+  useEffect(() => {
+    if (!userId) return
+    const interval = window.setInterval(loadPlayers, 1800)
+    return () => window.clearInterval(interval)
+  }, [loadPlayers, userId])
 
   async function handleLeave() {
     if (me) await leaveRoom(me.id)
@@ -92,6 +72,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
     setStarting(true)
     try {
       await startRound(room.id)
+      router.push(`/game/${room.code}`)
     } finally {
       setStarting(false)
     }
@@ -114,114 +95,127 @@ export default function LobbyRoom({ room }: { room: Room }) {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center gap-6 px-6 py-12">
-      <div className="text-center">
-        <p className="case-label">Case File No.</p>
-        <div className="flex items-center gap-3 justify-center mt-1">
-          <h1
-            className="text-4xl font-black tracking-widest text-evidence-gold"
-            style={{ fontFamily: 'var(--font-mono)' }}
-          >
-            {room.code}
-          </h1>
-          <button
-            onClick={handleCopyCode}
-            className="rounded-lg bg-surface border border-white/10 px-3 py-2 text-sm text-paper"
-          >
-            {copied ? '✓' : 'Copy'}
+    <main className="spy-screen">
+      <div className="screen-shadows" aria-hidden="true" />
+      <section className="page-stack">
+        <div className="center-title">
+          <p className="case-label">Room code</p>
+          <h1 className="room-code">{room.code}</h1>
+          <button onClick={handleCopyCode} className="secondary-action copy-code-action">
+            {copied ? 'Code copied' : 'Copy room code'}
           </button>
         </div>
-      </div>
 
-      <div className="w-full max-w-sm flex flex-col gap-3">
-        {players.map((player) => (
-          <div
-            key={player.id}
-            className="flex items-center justify-between rounded-xl bg-surface px-4 py-3 border border-white/10"
-          >
-            <div className="flex items-center gap-2">
-              <Avatar src={player.avatar} />
-              {player.is_host && <span title="Host">👑</span>}
-              <span className="text-paper font-medium">{player.name}</span>
-              {player.user_id === userId && (
-                <span className="text-muted text-xs">(you)</span>
-              )}
+        <div className="compact-grid">
+          <section className="room-panel">
+            <p className="case-label">Agents</p>
+            <div className="player-list mt-3">
+              {players.map((player) => {
+                const isMe = player.id === roomPlayerId || (!roomPlayerId && player.user_id === userId)
+                return (
+                  <div key={player.id} className={`player-row ${isMe ? 'is-you' : ''}`}>
+                    <AvatarBadge avatar={player.avatar} name={player.name} />
+                    <span>
+                      <strong>{player.name}</strong>
+                      <small className="block text-muted">
+                        {player.is_host ? 'Room owner' : isMe ? 'You' : 'Participant'}
+                      </small>
+                    </span>
+                    <span className={`status-pill ${player.is_ready ? 'ready' : ''}`}>
+                      {player.is_ready ? 'Ready' : 'Not ready'}
+                    </span>
+                    {isHost && !player.is_host && (
+                      <button onClick={() => kickPlayer(player.id)} className="text-button">
+                        Kick
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            <div className="flex items-center gap-3">
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  player.is_ready
-                    ? 'bg-stamp-green/20 text-stamp-green'
-                    : 'bg-white/10 text-muted'
-                }`}
-              >
-                {player.is_ready ? 'Ready' : 'Not ready'}
-              </span>
-              {isHost && !player.is_host && (
+          </section>
+
+          <section className="mission-panel">
+            <p className="case-label">{isHost ? 'Host controls' : 'Your status'}</p>
+
+            {isHost && (
+              <>
+                <div className="host-readiness">
+                  <span>
+                    <strong>{readyCount}</strong>
+                    ready
+                  </span>
+                  <span>
+                    <strong>{waitingCount}</strong>
+                    waiting
+                  </span>
+                </div>
+
+                <div className="field-stack">
+                  <label>
+                    <span className="case-label">Question pack</span>
+                    <select
+                      value={category}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      className="spy-select"
+                    >
+                      {CATEGORIES.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    <span className="case-label">Rounds</span>
+                    <select
+                      value={totalRounds}
+                      onChange={(e) => handleRoundsChange(Number(e.target.value))}
+                      className="spy-select"
+                    >
+                      {[3, 5, 7, 10].map((rounds) => (
+                        <option key={rounds} value={rounds}>
+                          {rounds} rounds
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </>
+            )}
+
+            <div className="lobby-stack mt-4">
+              {me && (
                 <button
-                  onClick={() => kickPlayer(player.id)}
-                  className="text-case-red text-xs"
+                  onClick={async () => {
+                    await toggleReady(me.id, me.is_ready)
+                    await loadPlayers()
+                  }}
+                  className="secondary-action"
                 >
-                  Kick
+                  {me.is_ready ? 'Cancel Ready' : 'Ready Up'}
                 </button>
               )}
+
+              {isHost && (
+                <button
+                  onClick={handleStart}
+                  disabled={starting || players.length < 3 || !players.every((p) => p.is_ready)}
+                  className="primary-action"
+                >
+                  {starting ? 'Starting...' : 'Start Game'}
+                </button>
+              )}
+
+              <button onClick={handleLeave} className="text-button">
+                Leave room
+              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          </section>
+        </div>
+      </section>
 
-      <div className="w-full max-w-sm flex flex-col gap-3 mt-4">
-        {isHost && (
-          <div>
-            <label className="case-label mb-1 block">Category</label>
-            <select
-              value={category}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="w-full rounded-xl bg-surface px-4 py-3 text-paper border border-white/10 outline-none"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-
-            <div className="mt-3">
-              <label className="case-label mb-1 block">Number of Rounds</label>
-              <select
-                value={totalRounds}
-                onChange={(e) => handleRoundsChange(Number(e.target.value))}
-                className="w-full rounded-xl bg-surface px-4 py-3 text-paper border border-white/10 outline-none"
-              >
-                {[3, 5, 7, 10].map((n) => (
-                  <option key={n} value={n}>{n} rounds</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {me && (
-          <button
-            onClick={() => toggleReady(me.id, me.is_ready)}
-            className="rounded-2xl bg-surface px-6 py-4 font-bold text-paper border border-white/10"
-          >
-            {me.is_ready ? 'Not Ready' : "I'm Ready"}
-          </button>
-        )}
-
-        {isHost && (
-          <button
-            onClick={handleStart}
-            disabled={starting || players.length < 3 || !players.every((p) => p.is_ready)}
-            className="rounded-2xl bg-case-red px-6 py-4 font-bold text-paper disabled:opacity-40"
-          >
-            {starting ? 'Starting...' : 'Start Game'}
-          </button>
-        )}
-
-        <button onClick={handleLeave} className="text-muted text-sm">
-          Leave Room
-        </button>
-      </div>
       <Chat roomId={room.id} me={me ?? null} players={players} />
     </main>
   )
