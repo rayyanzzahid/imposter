@@ -466,7 +466,9 @@ function Scoreboard({ players }: { players: Player[] }) {
       <p className="case-label text-left">Scoreboard</p>
       {[...players].sort((a, b) => b.score - a.score).map((player, index) => (
         <div key={player.id} className={`score-row scoreboard-row ${index === 0 ? 'score-leader' : ''}`}>
-          <span className="rank-medal">#{index + 1}</span>
+          <span className={`rank-medal rank-${index + 1}`} aria-label={`Rank ${index + 1}`}>
+            {index === 0 ? 'I' : index === 1 ? 'II' : index === 2 ? 'III' : `#${index + 1}`}
+          </span>
           <AvatarBadge avatar={player.avatar} name={player.name} />
           <span className="score-name">
             <strong>{player.name}</strong>

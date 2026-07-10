@@ -17,7 +17,10 @@ export default function Chat({
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
+  const [readMessageCount, setReadMessageCount] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  const unreadCount = Math.max(messages.length - readMessageCount, 0)
 
   useEffect(() => {
     let active = true
@@ -56,8 +59,13 @@ export default function Chat({
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="chat-toggle" aria-label="Open chat">
-        Chat
+      <button onClick={() => { setReadMessageCount(messages.length); setOpen(true) }} className="chat-toggle" aria-label={unreadCount ? `Open chat, ${unreadCount} unread messages` : 'Open chat'}>
+        <svg className="chat-icon" viewBox="0 0 48 48" aria-hidden="true">
+          <path className="chat-icon-back" d="M27 9h8c5.5 0 10 4.5 10 10v9c0 4.2-2.6 7.8-6.3 9.3V44l-7.1-5H25c-5.5 0-10-4.5-10-10v-1" />
+          <path className="chat-icon-front" d="M5 8.5C5 4.9 7.9 2 11.5 2h16C31.1 2 34 4.9 34 8.5v12c0 3.6-2.9 6.5-6.5 6.5H18l-8.5 7 1.8-7.1C7.7 26.2 5 23.5 5 20.5v-12Z" />
+          <path className="chat-icon-line" d="M12 10.5h14M12 16h9" />
+        </svg>
+        {unreadCount > 0 && <span className="chat-unread" aria-label={`${unreadCount} unread messages`}>{unreadCount > 99 ? '99+' : unreadCount}</span>}
       </button>
     )
   }
@@ -66,7 +74,7 @@ export default function Chat({
     <div className="chat-panel">
       <div className="chat-header">
         <span className="case-label">Case chat</span>
-        <button onClick={() => setOpen(false)} className="text-button">
+        <button onClick={() => { setReadMessageCount(messages.length); setOpen(false) }} className="text-button">
           Close
         </button>
       </div>

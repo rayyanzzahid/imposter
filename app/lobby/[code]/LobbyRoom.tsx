@@ -101,8 +101,17 @@ export default function LobbyRoom({ room }: { room: Room }) {
         <div className="center-title">
           <p className="case-label">Room code</p>
           <h1 className="room-code">{room.code}</h1>
-          <button onClick={handleCopyCode} className="secondary-action copy-code-action">
-            {copied ? 'Code copied' : 'Copy room code'}
+          <button
+            onClick={handleCopyCode}
+            className={`secondary-action icon-action copy-code-action ${copied ? 'is-copied' : ''}`}
+            aria-label={copied ? 'Room code copied' : 'Copy room code'}
+            title={copied ? 'Code copied' : 'Copy room code'}
+          >
+            <svg className="utility-icon copy-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h8A2.5 2.5 0 0 1 21 5.5v9a2.5 2.5 0 0 1-2.5 2.5H17" />
+              <rect x="3" y="7" width="14" height="14" rx="2.5" />
+              <path d="M6.5 11h7M6.5 14.5h5" />
+            </svg>
           </button>
         </div>
 
@@ -125,7 +134,12 @@ export default function LobbyRoom({ room }: { room: Room }) {
                       {player.is_ready ? 'Ready' : 'Not ready'}
                     </span>
                     {isHost && !player.is_host && (
-                      <button onClick={() => kickPlayer(player.id)} className="text-button">
+                      <button
+                        onClick={() => kickPlayer(player.id)}
+                        className="text-button kick-action"
+                        aria-label={`Kick ${player.name}`}
+                        title={`Kick ${player.name}`}
+                      >
                         Kick
                       </button>
                     )}
@@ -208,7 +222,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
                 </button>
               )}
 
-              <button onClick={handleLeave} className="text-button">
+              <button onClick={handleLeave} className="text-button leave-action">
                 Leave room
               </button>
             </div>
