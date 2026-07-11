@@ -72,35 +72,35 @@ body {
 .live-sky {
   inset: -4vh -4vw;
   background:
-    radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.34), transparent 31%),
-    radial-gradient(circle at 18% 18%, rgba(82, 94, 112, 0.16), transparent 22%),
-    radial-gradient(circle at 82% 12%, rgba(70, 82, 104, 0.12), transparent 20%),
-    linear-gradient(180deg, #030712 0%, #050915 40%, #03050b 72%, #010204 100%);
+    radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.44), transparent 31%),
+    radial-gradient(circle at 12% 20%, rgba(73, 91, 119, 0.18), transparent 26%),
+    radial-gradient(circle at 86% 16%, rgba(67, 83, 112, 0.14), transparent 24%),
+    linear-gradient(180deg, #06101d 0%, #050b17 38%, #030713 68%, #010205 100%);
   transform: translate3d(calc(var(--mx) * -8px), calc(var(--my) * -6px), 0) scale(1.04);
   animation: skyBreathe 24s ease-in-out infinite alternate;
 }
 
 .live-stars {
-  opacity: 0.34;
+  opacity: 0.14;
   background-repeat: repeat;
   transform: translate3d(calc(var(--mx) * 16px), calc(var(--my) * 10px), 0);
 }
 
 .stars-far {
   background-image:
-    radial-gradient(circle, rgba(236, 239, 235, 0.58) 0 0.7px, transparent 1.1px),
-    radial-gradient(circle, rgba(236, 224, 190, 0.34) 0 0.8px, transparent 1.2px),
-    radial-gradient(circle, rgba(178, 194, 214, 0.28) 0 0.7px, transparent 1.2px);
+    radial-gradient(circle, rgba(236, 239, 235, 0.5) 0 0.55px, transparent 1px),
+    radial-gradient(circle, rgba(236, 224, 190, 0.24) 0 0.55px, transparent 1px),
+    radial-gradient(circle, rgba(178, 194, 214, 0.2) 0 0.55px, transparent 1px);
   background-position: 18px 22px, 92px 64px, 140px 18px;
   background-size: 120px 88px, 190px 140px, 260px 170px;
   animation: starSlide 90s linear infinite;
 }
 
 .stars-near {
-  opacity: 0.2;
+  opacity: 0.08;
   background-image:
-    radial-gradient(circle, rgba(238, 233, 220, 0.62) 0 0.8px, transparent 1.3px),
-    radial-gradient(circle, rgba(238, 233, 220, 0.42) 0 0.7px, transparent 1.2px);
+    radial-gradient(circle, rgba(238, 233, 220, 0.34) 0 0.55px, transparent 1.1px),
+    radial-gradient(circle, rgba(238, 233, 220, 0.22) 0 0.5px, transparent 1px);
   background-position: 40px 18px, 126px 88px;
   background-size: 230px 150px, 330px 240px;
   transform: translate3d(calc(var(--mx) * 24px), calc(var(--my) * 14px), 0);
@@ -109,7 +109,7 @@ body {
 
 .live-clouds {
   inset: -12vh -18vw;
-  opacity: 0.22;
+  opacity: 0.44;
   filter: blur(18px);
   background:
     radial-gradient(ellipse at 18% 24%, rgba(95, 109, 130, 0.32), transparent 24%),
@@ -120,7 +120,7 @@ body {
 }
 
 .clouds-near {
-  opacity: 0.13;
+  opacity: 0.3;
   filter: blur(24px);
   transform: translate3d(calc(var(--mx) * -32px), calc(var(--my) * -12px), 0);
   animation-duration: 125s;
@@ -143,8 +143,8 @@ body {
 }
 
 .city-back {
-  height: 28vh;
-  opacity: 0.42;
+  height: 40vh;
+  opacity: 0.7;
   transform: translate3d(calc(var(--mx) * -8px), 0, 0);
 }
 
@@ -152,38 +152,38 @@ body {
   background:
     linear-gradient(180deg, transparent 0 13%, rgba(5, 8, 13, 0.98) 13% 100%),
     repeating-linear-gradient(90deg, #05070b 0 38px, transparent 38px 54px, #04060a 54px 96px, transparent 96px 122px),
-    repeating-linear-gradient(90deg, transparent 0 18px, rgba(238, 224, 180, 0.22) 19px 20px, transparent 21px 44px);
+    repeating-linear-gradient(90deg, transparent 0 18px, rgba(238, 224, 180, 0.3) 19px 20px, transparent 21px 44px);
   background-size: 160px 100%, 220px 100%, 112px 32px;
   clip-path: polygon(0 38%, 7% 22%, 13% 46%, 20% 18%, 28% 38%, 36% 28%, 45% 42%, 53% 16%, 61% 34%, 70% 26%, 78% 48%, 86% 20%, 93% 36%, 100% 28%, 100% 100%, 0 100%);
 }
 
 .city-mid {
-  height: 34vh;
-  opacity: 0.74;
+  height: 48vh;
+  opacity: 0.94;
   transform: translate3d(calc(var(--mx) * -14px), 0, 0);
 }
 
 .city-mid::before {
   background:
     repeating-linear-gradient(90deg, #03050a 0 42px, transparent 42px 56px, #020409 56px 108px, transparent 108px 130px),
-    repeating-linear-gradient(90deg, transparent 0 17px, rgba(238, 224, 182, 0.32) 18px 20px, transparent 21px 40px),
-    repeating-linear-gradient(0deg, transparent 0 13px, rgba(255, 239, 198, 0.13) 14px 16px, transparent 17px 28px);
+    repeating-linear-gradient(90deg, transparent 0 17px, rgba(238, 224, 182, 0.44) 18px 20px, transparent 21px 40px),
+    repeating-linear-gradient(0deg, transparent 0 13px, rgba(255, 239, 198, 0.2) 14px 16px, transparent 17px 28px);
   background-size: 260px 100%, 128px 46px, 100% 70px;
   clip-path: polygon(0 50%, 5% 22%, 11% 36%, 16% 12%, 23% 44%, 29% 20%, 36% 48%, 42% 17%, 50% 32%, 57% 8%, 63% 45%, 70% 18%, 76% 38%, 83% 12%, 90% 44%, 96% 24%, 100% 30%, 100% 100%, 0 100%);
   animation: windowPulse 9s steps(2, end) infinite;
 }
 
 .city-front {
-  height: 38vh;
-  opacity: 0.92;
+  height: 54vh;
+  opacity: 1;
   transform: translate3d(calc(var(--mx) * -20px), 0, 0);
 }
 
 .city-front::before {
   background:
     repeating-linear-gradient(90deg, #010207 0 46px, transparent 46px 61px, #02030a 61px 118px, transparent 118px 142px),
-    repeating-linear-gradient(90deg, transparent 0 20px, rgba(255, 231, 178, 0.36) 21px 23px, transparent 24px 52px),
-    repeating-linear-gradient(0deg, transparent 0 15px, rgba(255, 236, 190, 0.12) 16px 18px, transparent 19px 32px);
+    repeating-linear-gradient(90deg, transparent 0 20px, rgba(255, 231, 178, 0.5) 21px 23px, transparent 24px 52px),
+    repeating-linear-gradient(0deg, transparent 0 15px, rgba(255, 236, 190, 0.21) 16px 18px, transparent 19px 32px);
   background-size: 300px 100%, 150px 52px, 100% 84px;
   clip-path: polygon(0 56%, 4% 30%, 9% 46%, 14% 18%, 21% 40%, 26% 10%, 32% 54%, 38% 26%, 45% 44%, 51% 14%, 58% 58%, 64% 22%, 70% 50%, 76% 18%, 83% 42%, 89% 28%, 94% 52%, 100% 34%, 100% 100%, 0 100%);
   animation: windowPulse 13s steps(2, end) infinite reverse;
@@ -191,7 +191,7 @@ body {
 
 .city-front::after {
   height: 46%;
-  background: linear-gradient(180deg, transparent, rgba(1, 2, 5, 0.94));
+  background: linear-gradient(180deg, transparent, rgba(1, 2, 5, 0.86));
 }
 
 .antenna,
@@ -234,8 +234,8 @@ body {
 
 .skyline-fog {
   top: auto;
-  height: 29vh;
-  opacity: 0.35;
+  height: 34vh;
+  opacity: 0.56;
   background:
     radial-gradient(ellipse at 20% 64%, rgba(160, 170, 176, 0.16), transparent 34%),
     radial-gradient(ellipse at 60% 58%, rgba(148, 158, 166, 0.14), transparent 30%),
@@ -247,8 +247,8 @@ body {
 
 .live-vignette {
   background:
-    radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.56) 0 22%, rgba(0, 0, 0, 0.2) 42%, rgba(0, 0, 0, 0.78) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.2), transparent 26%, rgba(0, 0, 0, 0.5));
+    radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.52) 0 20%, rgba(0, 0, 0, 0.12) 48%, rgba(0, 0, 0, 0.62) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), transparent 28%, rgba(0, 0, 0, 0.36));
 }
 
 button,
