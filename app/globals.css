@@ -58,39 +58,51 @@ body {
   background: #020408;
 }
 
-.cinematic-city-bg,
-.cinematic-city-clouds,
-.cinematic-city-vignette {
+.moonlit-city,
+.moonlit-vignette {
   position: absolute;
   inset: 0;
-  will-change: transform;
 }
 
-.cinematic-city-bg {
-  inset: -3vh -3vw;
-  background:
-    linear-gradient(180deg, rgba(1, 3, 7, 0.1), rgba(1, 3, 7, 0.18) 54%, rgba(1, 2, 5, 0.34)),
-    url('/assets/moody-city-night.png') center bottom / cover no-repeat;
-  transform: translate3d(calc(var(--mx) * -10px), calc(var(--my) * -6px), 0) scale(1.04);
-  filter: brightness(0.9) contrast(1.08) saturate(0.86);
+.moonlit-city {
+  width: 100%;
+  height: 100%;
+  transform: translate3d(calc(var(--mx) * -10px), calc(var(--my) * -6px), 0) scale(1.035);
+  transform-origin: center;
 }
 
-.cinematic-city-clouds {
-  inset: -16vh -14vw;
-  opacity: 0.28;
-  background:
-    radial-gradient(ellipse at 18% 18%, rgba(96, 108, 118, 0.34), transparent 25%),
-    radial-gradient(ellipse at 48% 12%, rgba(18, 24, 31, 0.68), transparent 31%),
-    radial-gradient(ellipse at 78% 26%, rgba(83, 94, 104, 0.22), transparent 26%);
-  filter: blur(20px);
+.cloud-bank {
   transform: translate3d(calc(var(--mx) * -22px), calc(var(--my) * -10px), 0);
-  animation: cinematicCloudDrift 90s linear infinite alternate;
+  animation: cloudDrift 90s ease-in-out infinite alternate;
 }
 
-.cinematic-city-vignette {
+.cloud-front {
+  animation-duration: 130s;
+  animation-direction: alternate-reverse;
+}
+
+.city-moon {
+  transform: translate3d(calc(var(--mx) * 12px), calc(var(--my) * 5px), 0);
+}
+
+.city-window {
+  fill: rgba(237, 221, 178, 0.52);
+  animation: windowFade 11s steps(2, end) infinite;
+}
+
+.city-window.dim {
+  fill: rgba(221, 214, 184, 0.26);
+}
+
+.low-fog {
+  transform: translate3d(calc(var(--mx) * 8px), 0, 0);
+  animation: fogBreathe 18s ease-in-out infinite alternate;
+}
+
+.moonlit-vignette {
   background:
-    radial-gradient(ellipse at 50% 49%, rgba(0, 0, 0, 0.48) 0 20%, rgba(0, 0, 0, 0.12) 47%, rgba(0, 0, 0, 0.7) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.24), transparent 30%, rgba(0, 0, 0, 0.42));
+    radial-gradient(ellipse at 50% 48%, rgba(0, 0, 0, 0.55) 0 20%, rgba(0, 0, 0, 0.13) 48%, rgba(0, 0, 0, 0.72) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 30%, rgba(0, 0, 0, 0.46));
 }
 button,
 input,
@@ -1183,12 +1195,35 @@ button {
 
 
 
-@keyframes cinematicCloudDrift {
+
+
+@keyframes cloudDrift {
   to {
-    transform: translate3d(calc(var(--mx) * -22px + 4vw), calc(var(--my) * -10px), 0);
+    transform: translate3d(calc(var(--mx) * -22px + 42px), calc(var(--my) * -10px), 0);
   }
 }
 
+@keyframes windowFade {
+  50% {
+    opacity: 0.48;
+  }
+}
+
+@keyframes fogBreathe {
+  to {
+    opacity: 0.72;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moonlit-city,
+  .cloud-bank,
+  .low-fog,
+  .city-window {
+    animation: none;
+    transform: none;
+  }
+}
 @media (max-width: 780px) {
   .compact-grid,
   .choice-grid {
@@ -1206,6 +1241,7 @@ button {
     opacity: 0.08;
   }
 }
+
 
 
 
