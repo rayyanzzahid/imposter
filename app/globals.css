@@ -14,8 +14,8 @@
 :root {
   color-scheme: dark;
   --bg: #080908;
-  --panel: rgba(17, 18, 16, 0.92);
-  --panel-soft: rgba(22, 23, 20, 0.76);
+  --panel: rgba(10, 12, 16, 0.78);
+  --panel-soft: rgba(14, 17, 22, 0.68);
   --ink: #eee9dc;
   --muted: #9b9588;
   --dim: #68645c;
@@ -66,8 +66,7 @@ body {
 .live-fog,
 .live-vignette {
   background:
-    radial-gradient(ellipse at 50% 48%, rgba(0, 0, 0, 0.58) 0 22%, rgba(0, 0, 0, 0.18) 47%, rgba(0, 0, 0, 0.68) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 24%, rgba(0, 0, 0, 0.44));
+    radial-gradient(ellipse at 50% 48%, rgba(0, 0, 0, 0.44) 0 19%, rgba(0, 0, 0, 0.08) 48%, rgba(0, 0, 0, 0.58) 100%),`r`n    linear-gradient(180deg, rgba(0, 0, 0, 0.08), transparent 24%, rgba(0, 0, 0, 0.34));
 }
 
 .live-sky {
@@ -136,15 +135,15 @@ body {
 }
 
 .live-moon {
-  top: 31vh;
-  right: 16vw;
-  width: 34px;
-  height: 34px;
+  top: 26vh;
+  right: 10vw;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   opacity: 0.78;
   background:
     radial-gradient(circle at 38% 34%, rgba(255, 247, 195, 0.96), rgba(224, 218, 160, 0.72) 46%, rgba(224, 218, 160, 0.08) 68%, transparent 70%);
-  box-shadow: 0 0 18px rgba(228, 220, 164, 0.18);
+  box-shadow: 0 0 34px rgba(228, 220, 164, 0.25);
   transform: translate3d(calc(var(--mx) * 10px), calc(var(--my) * 4px), 0);
 }
 
@@ -175,8 +174,8 @@ body {
 }
 
 .city-back {
-  height: 32vh;
-  opacity: 0.72;
+  height: 38vh;
+  opacity: 0.78;
   transform: translate3d(calc(var(--mx) * -8px), 0, 0);
 }
 
@@ -190,8 +189,8 @@ body {
 }
 
 .city-mid {
-  height: 38vh;
-  opacity: 0.92;
+  height: 44vh;
+  opacity: 0.98;
   transform: translate3d(calc(var(--mx) * -14px), 0, 0);
 }
 
@@ -206,7 +205,7 @@ body {
 }
 
 .city-front {
-  height: 43vh;
+  height: 50vh;
   opacity: 1;
   transform: translate3d(calc(var(--mx) * -20px), 0, 0);
 }
@@ -279,8 +278,7 @@ body {
 
 .live-vignette {
   background:
-    radial-gradient(ellipse at 50% 48%, rgba(0, 0, 0, 0.58) 0 22%, rgba(0, 0, 0, 0.18) 47%, rgba(0, 0, 0, 0.68) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.18), transparent 24%, rgba(0, 0, 0, 0.44));
+    radial-gradient(ellipse at 50% 48%, rgba(0, 0, 0, 0.44) 0 19%, rgba(0, 0, 0, 0.08) 48%, rgba(0, 0, 0, 0.58) 100%),`r`n    linear-gradient(180deg, rgba(0, 0, 0, 0.08), transparent 24%, rgba(0, 0, 0, 0.34));
 }
 
 button,
@@ -358,7 +356,7 @@ button {
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(10px);
 }
 
 .home-card {
@@ -1435,5 +1433,6 @@ button {
     opacity: 0.08;
   }
 }
+
 
 
