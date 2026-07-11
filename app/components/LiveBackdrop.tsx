@@ -37,7 +37,6 @@ export function LiveBackdrop() {
       <div className="live-stars stars-far" />
       <div className="live-stars stars-near" />
       <div className="live-fog" />
-      <div className="live-grass" />
       <div className="live-vignette" />
     </div>
   )
