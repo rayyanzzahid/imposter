@@ -33,27 +33,9 @@ export function LiveBackdrop() {
 
   return (
     <div ref={backdropRef} className="live-backdrop" aria-hidden="true">
-      <div className="live-sky" />
-      <div className="live-stars stars-far" />
-      <div className="live-stars stars-near" />
-      <div className="live-clouds clouds-far" />
-      <div className="live-clouds clouds-near" />
-      <div className="live-moon" />
-      <div className="city-layer city-back">
-        <span className="antenna antenna-a" />
-        <span className="beacon beacon-a" />
-      </div>
-      <div className="city-layer city-mid">
-        <span className="antenna antenna-b" />
-        <span className="beacon beacon-b" />
-      </div>
-      <div className="city-layer city-front">
-        <span className="antenna antenna-c" />
-        <span className="beacon beacon-c" />
-      </div>
-      <div className="live-fog skyline-fog" />
-      <div className="live-vignette" />
+      <div className="cinematic-city-bg" />
+      <div className="cinematic-city-clouds" />
+      <div className="cinematic-city-vignette" />
     </div>
   )
 }
-
