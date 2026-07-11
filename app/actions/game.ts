@@ -2,6 +2,8 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 
+const DISCUSSION_DURATION_SECONDS = 120
+
 export async function startRound(roomId: string) {
   const supabase = createAdminClient()
 
@@ -62,7 +64,7 @@ export async function advanceToQuestionReveal(roundId: string) {
 
 export async function advanceToDiscussion(roundId: string) {
   const supabase = createAdminClient()
-  const discussionEndsAt = new Date(Date.now() + 90 * 1000).toISOString()
+  const discussionEndsAt = new Date(Date.now() + DISCUSSION_DURATION_SECONDS * 1000).toISOString()
   const { error } = await supabase
     .from('rounds')
     .update({ phase: 'discussion', discussion_ends_at: discussionEndsAt })

@@ -36,9 +36,15 @@ function errorMessage(error: unknown, fallback: string) {
 
 export default function HomePage() {
   const router = useRouter()
-  const [mode, setMode] = useState<'create' | 'join'>('create')
+  const [mode, setMode] = useState<'create' | 'join'>(() => {
+    if (typeof window === 'undefined') return 'create'
+    return new URLSearchParams(window.location.search).has('join') ? 'join' : 'create'
+  })
   const [name, setName] = useState('')
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return new URLSearchParams(window.location.search).get('join')?.toUpperCase() ?? ''
+  })
   const [avatar, setAvatar] = useState(AVATARS[0].src)
   const [hoveredAvatar, setHoveredAvatar] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)

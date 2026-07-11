@@ -29,6 +29,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
   const [totalRounds, setTotalRoundsState] = useState(room.total_rounds ?? 5)
   const [starting, setStarting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [roomPlayerId, setRoomPlayerIdState] = useState<string | null>(null)
 
@@ -94,6 +95,13 @@ export default function LobbyRoom({ room }: { room: Room }) {
     setTimeout(() => setCopied(false), 1500)
   }
 
+  async function handleCopyJoinLink() {
+    const joinLink = `${window.location.origin}/?join=${room.code}`
+    await navigator.clipboard.writeText(joinLink)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 1500)
+  }
+
   return (
     <main className="spy-screen">
       <div className="screen-shadows" aria-hidden="true" />
@@ -112,6 +120,18 @@ export default function LobbyRoom({ room }: { room: Room }) {
                 <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3h8A2.5 2.5 0 0 1 21 5.5v9a2.5 2.5 0 0 1-2.5 2.5H17" />
                 <rect x="3" y="7" width="14" height="14" rx="2.5" />
                 <path d="M6.5 11h7M6.5 14.5h5" />
+              </svg>
+            </button>
+            <button
+              onClick={handleCopyJoinLink}
+              className={`secondary-action icon-action copy-code-action ${linkCopied ? 'is-copied' : ''}`}
+              aria-label={linkCopied ? 'Join link copied' : 'Copy join link'}
+              title={linkCopied ? 'Join link copied' : 'Copy join link'}
+            >
+              <svg className="utility-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M10 13.5 14 9.5" />
+                <path d="M7.5 16.5 6 18a3 3 0 0 1-4.2-4.2l3.7-3.7a3 3 0 0 1 4.2 0" />
+                <path d="m16.5 7.5 1.5-1.5a3 3 0 0 1 4.2 4.2l-3.7 3.7a3 3 0 0 1-4.2 0" />
               </svg>
             </button>
           </div>

@@ -461,22 +461,29 @@ function RevealPhase({
 }
 
 function Scoreboard({ players }: { players: Player[] }) {
+  const romanRanks = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+  const rankedPlayers = [...players].sort((a, b) => b.score - a.score)
+
   return (
     <div className="score-list mt-5">
       <p className="case-label text-left">Scoreboard</p>
-      {[...players].sort((a, b) => b.score - a.score).map((player, index) => (
-        <div key={player.id} className={`score-row scoreboard-row ${index === 0 ? 'score-leader' : ''}`}>
-          <span className={`rank-medal rank-${index + 1}`} aria-label={`Rank ${index + 1}`}>
-            {index === 0 ? 'I' : index === 1 ? 'II' : index === 2 ? 'III' : `#${index + 1}`}
+      {rankedPlayers.map((player) => {
+        const displayRank = rankedPlayers.findIndex((item) => item.score === player.score) + 1
+
+        return (
+        <div key={player.id} className={`score-row scoreboard-row ${displayRank === 1 ? 'score-leader' : ''}`}>
+          <span className={`rank-medal rank-${displayRank}`} aria-label={`Rank ${displayRank}`}>
+            {romanRanks[displayRank - 1] ?? `#${displayRank}`}
           </span>
           <AvatarBadge avatar={player.avatar} name={player.name} />
           <span className="score-name">
             <strong>{player.name}</strong>
-            <small>{index === 0 ? 'Current lead' : 'Agent score'}</small>
+            <small>{displayRank === 1 ? 'Current lead' : 'Agent score'}</small>
           </span>
           <span className="score-points">{player.score}<small>pts</small></span>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
