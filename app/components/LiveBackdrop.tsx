@@ -38,6 +38,7 @@ export function LiveBackdrop() {
       <div className="live-stars stars-near" />
       <div className="live-clouds clouds-far" />
       <div className="live-clouds clouds-near" />
+      <div className="live-moon" />
       <div className="city-layer city-back">
         <span className="antenna antenna-a" />
         <span className="beacon beacon-a" />
@@ -55,3 +56,4 @@ export function LiveBackdrop() {
     </div>
   )
 }
+
