@@ -1,7 +1,7 @@
 import { kickPlayerAction, leaveRoomAction, toggleReadyAction } from '@/app/actions/players'
 
-export async function toggleReady(playerId: string, isReady: boolean) {
-  await toggleReadyAction(playerId, isReady)
+export async function toggleReady(playerId: string) {
+  await toggleReadyAction(playerId)
 }
 
 export async function kickPlayer(playerId: string) {

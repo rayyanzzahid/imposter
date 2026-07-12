@@ -1,15 +1,20 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireHostPlayer } from '@/lib/session'
 
 const DISCUSSION_DURATION_SECONDS = 120
 
 export async function startRound(roomId: string) {
   const supabase = createAdminClient()
+  await requireHostPlayer(supabase, roomId)
 
   const { data: players } = await supabase.from('players').select().eq('room_id', roomId)
   if (!players || players.length < 3) {
     throw new Error('Not enough players')
+  }
+  if (!players.every((player) => player.is_ready)) {
+    throw new Error('Every player must be ready before starting.')
   }
 
   const { data: rounds } = await supabase
@@ -58,12 +63,20 @@ export async function startRound(roomId: string) {
 
 export async function advanceToQuestionReveal(roundId: string) {
   const supabase = createAdminClient()
+  const { data: round } = await supabase.from('rounds').select('room_id,phase').eq('id', roundId).single()
+  if (!round) throw new Error('Round not found')
+  if (round.phase !== 'answering') throw new Error('Round is not in the answering phase.')
+  await requireHostPlayer(supabase, round.room_id)
   const { error } = await supabase.from('rounds').update({ phase: 'question_reveal' }).eq('id', roundId)
   if (error) throw error
 }
 
 export async function advanceToDiscussion(roundId: string) {
   const supabase = createAdminClient()
+  const { data: round } = await supabase.from('rounds').select('room_id,phase').eq('id', roundId).single()
+  if (!round) throw new Error('Round not found')
+  if (round.phase !== 'question_reveal') throw new Error('Round is not ready for discussion.')
+  await requireHostPlayer(supabase, round.room_id)
   const discussionEndsAt = new Date(Date.now() + DISCUSSION_DURATION_SECONDS * 1000).toISOString()
   const { error } = await supabase
     .from('rounds')
@@ -74,6 +87,10 @@ export async function advanceToDiscussion(roundId: string) {
 
 export async function advanceToVoting(roundId: string) {
   const supabase = createAdminClient()
+  const { data: round } = await supabase.from('rounds').select('room_id,phase').eq('id', roundId).single()
+  if (!round) throw new Error('Round not found')
+  if (round.phase !== 'discussion') throw new Error('Round is not ready for voting.')
+  await requireHostPlayer(supabase, round.room_id)
   const { error } = await supabase.from('rounds').update({ phase: 'voting' }).eq('id', roundId)
   if (error) throw error
 }
@@ -83,6 +100,8 @@ export async function advanceToReveal(roundId: string) {
 
   const { data: round } = await supabase.from('rounds').select().eq('id', roundId).single()
   if (!round) throw new Error('Round not found')
+  if (round.phase !== 'voting') throw new Error('Round is not ready to reveal.')
+  await requireHostPlayer(supabase, round.room_id)
 
   const { data: votes } = await supabase.from('votes').select().eq('round_id', roundId)
   if (!votes) throw new Error('No votes found')
@@ -116,12 +135,14 @@ export async function advanceToReveal(roundId: string) {
 
 export async function endGame(roomId: string) {
   const supabase = createAdminClient()
+  await requireHostPlayer(supabase, roomId)
   const { error } = await supabase.from('rooms').update({ status: 'ended' }).eq('id', roomId)
   if (error) throw error
 }
 
 export async function resetGame(roomId: string) {
   const supabase = createAdminClient()
+  await requireHostPlayer(supabase, roomId)
 
   const { data: rounds } = await supabase.from('rounds').select('id').eq('room_id', roomId)
   const roundIds = rounds?.map((r) => r.id) ?? []

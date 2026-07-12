@@ -1,9 +1,10 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { findSessionPlayer } from '@/lib/session'
 import type { Answer, Player, Question, Room, Round, Vote } from '@/lib/supabase/types'
 
-export async function getGameStateAction(roomId: string, userId: string, roomPlayerId: string | null) {
+export async function getGameStateAction(roomId: string, roomPlayerId: string | null) {
   const supabase = createAdminClient()
 
   const [{ data: currentRoom }, { data: rounds }, { data: players }] = await Promise.all([
@@ -13,9 +14,18 @@ export async function getGameStateAction(roomId: string, userId: string, roomPla
   ])
 
   const allPlayers = (players ?? []) as Player[]
-  const player = allPlayers.find((item) => item.id === roomPlayerId) ?? allPlayers.find((item) => item.user_id === userId) ?? null
+  const player = allPlayers.length > 0 ? await findSessionPlayer(supabase, roomId, roomPlayerId) : null
   const currentRound = ((rounds ?? [])[0] ?? null) as Round | null
 
+  const isReveal = currentRound?.phase === 'reveal'
+  const isQuestionReveal = currentRound?.phase === 'question_reveal'
+  const safeRound = currentRound
+    ? {
+      ...currentRound,
+      imposter_player_id: isReveal ? currentRound.imposter_player_id : '',
+      imposter_question_id: isReveal ? currentRound.imposter_question_id : '',
+    }
+    : null
   let question: Question | null = null
   let mainQuestion: Question | null = null
   let imposterQuestion: Question | null = null
@@ -37,8 +47,8 @@ export async function getGameStateAction(roomId: string, userId: string, roomPla
     ])
 
     question = (qRes.data ?? null) as Question | null
-    mainQuestion = (mqRes.data ?? null) as Question | null
-    imposterQuestion = (iqRes.data ?? null) as Question | null
+    mainQuestion = (isQuestionReveal || isReveal ? mqRes.data : null) as Question | null
+    imposterQuestion = (isReveal ? iqRes.data : null) as Question | null
     answers = (answersRes.data ?? []) as Answer[]
     votes = (votesRes.data ?? []) as Vote[]
     skips = (skipsRes.data ?? []).map((skip) => skip.player_id as string)
@@ -46,10 +56,11 @@ export async function getGameStateAction(roomId: string, userId: string, roomPla
 
   return {
     room: currentRoom as Pick<Room, 'status' | 'total_rounds'> | null,
-    round: currentRound,
+    round: safeRound as Round | null,
     question,
     mainQuestion,
     imposterQuestion,
+    isTraitor: currentRound?.imposter_player_id === player?.id,
     me: player,
     players: allPlayers,
     answers,
@@ -60,32 +71,63 @@ export async function getGameStateAction(roomId: string, userId: string, roomPla
 
 export async function submitAnswerAction(
   roundId: string,
-  playerId: string,
-  answeredPlayerId: string,
-  answeredPlayerName: string
+  answeredPlayerId: string
 ) {
   const supabase = createAdminClient()
+  const { data: round } = await supabase.from('rounds').select('id,room_id,phase').eq('id', roundId).single()
+  if (!round) throw new Error('Round not found')
+  if (round.phase !== 'answering') throw new Error('Answers are closed for this round.')
+
+  const player = await findSessionPlayer(supabase, round.room_id)
+  const { data: answeredPlayer } = await supabase
+    .from('players')
+    .select('id,name')
+    .eq('id', answeredPlayerId)
+    .eq('room_id', round.room_id)
+    .single()
+
+  if (!answeredPlayer) throw new Error('That player is not in this room.')
+
   const { error } = await supabase
     .from('answers')
     .upsert(
-      { round_id: roundId, player_id: playerId, answered_player_id: answeredPlayerId, text: answeredPlayerName },
+      { round_id: roundId, player_id: player.id, answered_player_id: answeredPlayer.id, text: answeredPlayer.name },
       { onConflict: 'round_id,player_id' }
     )
   if (error) throw error
 }
 
-export async function submitVoteAction(roundId: string, voterId: string, votedForId: string) {
+export async function submitVoteAction(roundId: string, votedForId: string) {
   const supabase = createAdminClient()
+  const { data: round } = await supabase.from('rounds').select('id,room_id,phase').eq('id', roundId).single()
+  if (!round) throw new Error('Round not found')
+  if (round.phase !== 'voting') throw new Error('Voting is closed for this round.')
+
+  const voter = await findSessionPlayer(supabase, round.room_id)
+  const { data: votedFor } = await supabase
+    .from('players')
+    .select('id')
+    .eq('id', votedForId)
+    .eq('room_id', round.room_id)
+    .single()
+
+  if (!votedFor) throw new Error('That player is not in this room.')
+
   const { error } = await supabase
     .from('votes')
-    .upsert({ round_id: roundId, voter_id: voterId, voted_for_id: votedForId }, { onConflict: 'round_id,voter_id' })
+    .upsert({ round_id: roundId, voter_id: voter.id, voted_for_id: votedFor.id }, { onConflict: 'round_id,voter_id' })
   if (error) throw error
 }
 
-export async function markSkipDiscussionAction(roundId: string, playerId: string) {
+export async function markSkipDiscussionAction(roundId: string) {
   const supabase = createAdminClient()
+  const { data: round } = await supabase.from('rounds').select('id,room_id,phase').eq('id', roundId).single()
+  if (!round) throw new Error('Round not found')
+  if (round.phase !== 'discussion') throw new Error('Discussion is not active.')
+
+  const player = await findSessionPlayer(supabase, round.room_id)
   const { error } = await supabase
     .from('discussion_skips')
-    .upsert({ round_id: roundId, player_id: playerId }, { onConflict: 'round_id,player_id' })
+    .upsert({ round_id: roundId, player_id: player.id }, { onConflict: 'round_id,player_id' })
   if (error) throw error
 }

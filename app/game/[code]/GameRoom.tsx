@@ -31,6 +31,7 @@ export default function GameRoom({ room }: { room: Room }) {
   const [question, setQuestion] = useState<Question | null>(null)
   const [mainQuestion, setMainQuestion] = useState<Question | null>(null)
   const [imposterQuestion, setImposterQuestion] = useState<Question | null>(null)
+  const [isTraitor, setIsTraitor] = useState(false)
   const [me, setMe] = useState<Player | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [answers, setAnswers] = useState<Answer[]>([])
@@ -57,7 +58,7 @@ export default function GameRoom({ room }: { room: Room }) {
   async function loadAll() {
     if (!userId || pendingSubmissionRef.current) return
 
-    const state = await getGameStateAction(room.id, userId, roomPlayerId)
+    const state = await getGameStateAction(room.id, roomPlayerId)
 
     if (state.room) {
       setRoomStatus(state.room.status)
@@ -70,6 +71,7 @@ export default function GameRoom({ room }: { room: Room }) {
     setQuestion(state.question)
     setMainQuestion(state.mainQuestion)
     setImposterQuestion(state.imposterQuestion)
+    setIsTraitor(state.isTraitor)
     const optimisticAnswer = optimisticAnswerRef.current
     const optimisticVote = optimisticVoteRef.current
     const optimisticSkip = optimisticSkipRef.current
@@ -158,7 +160,7 @@ export default function GameRoom({ room }: { room: Room }) {
       setSecondsLeft(remaining)
       if (remaining === 0) {
         clearInterval(interval)
-        if (!advancing.current) {
+        if (isHost && !advancing.current) {
           advancing.current = true
           advanceToVoting(round.id)
         }
@@ -209,7 +211,7 @@ export default function GameRoom({ room }: { room: Room }) {
     pendingSubmissionRef.current = true
     setPendingSubmission(true)
     try {
-      await submitAnswer(round!.id, me!.id, answeredPlayer.id, answeredPlayer.name)
+      await submitAnswer(round!.id, answeredPlayer.id)
       await new Promise((resolve) => window.setTimeout(resolve, 2000))
     } catch (error) {
       setAnswers(previousAnswers)
@@ -235,7 +237,7 @@ export default function GameRoom({ room }: { room: Room }) {
     pendingSubmissionRef.current = true
     setPendingSubmission(true)
     try {
-      await submitVote(round!.id, me!.id, votedForId)
+      await submitVote(round!.id, votedForId)
       await new Promise((resolve) => window.setTimeout(resolve, 2000))
     } catch (error) {
       setVotes(previousVotes)
@@ -255,7 +257,7 @@ export default function GameRoom({ room }: { room: Room }) {
     pendingSubmissionRef.current = true
     setPendingSubmission(true)
     try {
-      await markSkipDiscussion(round!.id, me!.id)
+      await markSkipDiscussion(round!.id)
       await new Promise((resolve) => window.setTimeout(resolve, 2000))
     } catch (error) {
       setSkips(previousSkips)
@@ -331,7 +333,7 @@ export default function GameRoom({ room }: { room: Room }) {
 
         {round.phase === 'question_reveal' && (
           <div className="game-stack mx-auto">
-            {round.imposter_player_id === me.id && (
+            {isTraitor && (
               <div className="stamp mx-auto">You are the spy</div>
             )}
             <p className="case-label">The real question was</p>

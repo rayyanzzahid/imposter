@@ -252,7 +252,7 @@ export default function HomePage() {
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               onKeyDown={submitOnEnter}
               placeholder="Room code"
-              maxLength={5}
+              maxLength={8}
               className="spy-input code-input"
               autoComplete="off"
             />

@@ -89,12 +89,12 @@ export default function LobbyRoom({ room }: { room: Room }) {
 
   async function handleCategoryChange(value: string) {
     setCategory(value)
-    await setRoomCategory(room.id, value)
+    await setRoomCategory(room.id, value, roomPlayerId)
   }
 
   async function handleRoundsChange(value: number) {
     setTotalRoundsState(value)
-    await setTotalRounds(room.id, value)
+    await setTotalRounds(room.id, value, roomPlayerId)
   }
 
   async function handleCopyCode() {
@@ -245,7 +245,7 @@ export default function LobbyRoom({ room }: { room: Room }) {
                     const previousPlayers = players
                     setPlayers((current) => current.map((player) => player.id === me.id ? { ...player, is_ready: !player.is_ready } : player))
                     try {
-                      await toggleReady(me.id, me.is_ready)
+                      await toggleReady(me.id)
                     } catch (error) {
                       setPlayers(previousPlayers)
                       console.error('Ready update failed', error)

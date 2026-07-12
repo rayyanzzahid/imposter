@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateRoomCode } from '@/lib/roomCode'
+import { getOrCreateSessionUserId, requireHostPlayer } from '@/lib/session'
 
 function supabaseMessage(label: string, error: unknown) {
   if (error instanceof Error) return `${label}: ${error.message}`
@@ -69,16 +70,33 @@ async function isNameTaken(roomId: string, name: string) {
   return (data?.length ?? 0) > 0
 }
 
-export async function createRoomAction(hostName: string, avatar: string, userId: string) {
+function cleanName(name: string) {
+  const cleaned = name.trim().replace(/\s+/g, ' ').slice(0, 32)
+  if (cleaned.length < 1) throw new Error('Enter your name first')
+  return cleaned
+}
+
+function cleanAvatar(avatar: string) {
+  const cleaned = avatar.trim()
+  if (!cleaned.startsWith('/avatars/') || cleaned.includes('..')) {
+    throw new Error('Invalid avatar')
+  }
+  return cleaned.slice(0, 120)
+}
+
+export async function createRoomAction(hostName: string, avatar: string) {
   const supabase = createAdminClient()
-  await ensureUser(userId, hostName, avatar)
+  const userId = await getOrCreateSessionUserId()
+  const name = cleanName(hostName)
+  const playerAvatar = cleanAvatar(avatar)
+  await ensureUser(userId, name, playerAvatar)
   const room = await createUniqueRoom(userId)
 
   const { data: player, error: playerError } = await supabase.from('players').insert({
     room_id: room.id,
     user_id: userId,
-    name: hostName.trim(),
-    avatar,
+    name,
+    avatar: playerAvatar,
     is_host: true,
   }).select()
     .single()
@@ -88,9 +106,12 @@ export async function createRoomAction(hostName: string, avatar: string, userId:
   return { code: room.code as string, playerId: player.id as string }
 }
 
-export async function joinRoomAction(code: string, playerName: string, avatar: string, userId: string) {
+export async function joinRoomAction(code: string, playerName: string, avatar: string) {
   const supabase = createAdminClient()
-  await ensureUser(userId, playerName, avatar)
+  const userId = await getOrCreateSessionUserId()
+  const name = cleanName(playerName)
+  const playerAvatar = cleanAvatar(avatar)
+  await ensureUser(userId, name, playerAvatar)
   const { data: room, error: roomError } = await supabase
     .from('rooms')
     .select()
@@ -99,15 +120,15 @@ export async function joinRoomAction(code: string, playerName: string, avatar: s
 
   if (roomError || !room) throw new Error('Room not found')
 
-  if (await isNameTaken(room.id, playerName)) {
+  if (await isNameTaken(room.id, name)) {
     throw new Error('That name is already taken in this room')
   }
 
   const { data: player, error: playerError } = await supabase.from('players').insert({
     room_id: room.id,
     user_id: userId,
-    name: playerName.trim(),
-    avatar,
+    name,
+    avatar: playerAvatar,
     is_host: false,
   }).select()
     .single()
@@ -115,4 +136,25 @@ export async function joinRoomAction(code: string, playerName: string, avatar: s
   if (playerError) throw new Error(supabaseMessage('Could not join room', playerError))
   if (!player) throw new Error('Could not join room: no player returned')
   return { code: room.code as string, playerId: player.id as string }
+}
+
+export async function setRoomCategoryAction(roomId: string, category: string, roomPlayerId: string | null) {
+  const supabase = createAdminClient()
+  await requireHostPlayer(supabase, roomId, roomPlayerId)
+
+  const allowedCategories = new Set(['all', 'general', 'school', 'university', 'gaming', 'sports', 'office', 'travel'])
+  if (!allowedCategories.has(category)) throw new Error('Invalid question pack')
+
+  const { error } = await supabase.from('rooms').update({ category }).eq('id', roomId)
+  if (error) throw new Error(supabaseMessage('Could not update room category', error))
+}
+
+export async function setTotalRoundsAction(roomId: string, totalRounds: number, roomPlayerId: string | null) {
+  const supabase = createAdminClient()
+  await requireHostPlayer(supabase, roomId, roomPlayerId)
+
+  if (![3, 5, 7, 10].includes(totalRounds)) throw new Error('Invalid round count')
+
+  const { error } = await supabase.from('rooms').update({ total_rounds: totalRounds }).eq('id', roomId)
+  if (error) throw new Error(supabaseMessage('Could not update total rounds', error))
 }
