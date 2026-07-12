@@ -22,6 +22,117 @@ const AVATARS = [
   { src: '/avatars/traitor6.jpeg', name: 'Silk', role: 'Traitor', description: 'Soft voice. Dangerous cover story.' },
 ]
 
+const INFO_TABS = [
+  {
+    id: 'rules',
+    icon: '📜',
+    label: 'Rules',
+    title: 'Game Rules',
+    content: (
+      <>
+        <p>
+          Find The Traitor is built for quick online multiplayer rounds with friends. A host creates
+          a room, shares the room code, and every player joins from the browser with a name and avatar.
+        </p>
+        <ul>
+          <li>Minimum 3 players are required, but larger groups make the discussion more intense.</li>
+          <li>At the start of each round, one random player secretly becomes the Traitor.</li>
+          <li>Most players receive the same hidden topic or question.</li>
+          <li>The Traitor receives a different prompt and must blend in without being exposed.</li>
+          <li>Players answer by choosing another player, so every response becomes a clue.</li>
+          <li>No one should reveal their exact question during the answer phase.</li>
+          <li>After answers are revealed, the group discusses patterns, suspicious choices, and weak alibis.</li>
+          <li>Everyone votes for the player they believe is the Traitor.</li>
+          <li>If the majority identifies the Traitor, the team wins the round.</li>
+          <li>If the Traitor survives the vote, the Traitor wins the round.</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: 'game',
+    icon: '🎯',
+    label: 'Game',
+    title: 'About Find The Traitor',
+    content: (
+      <>
+        <p>
+          Find The Traitor is an online multiplayer social deduction party game for people who like
+          bluffing, reading reactions, debating clues, and catching the one player who does not belong.
+        </p>
+        <p>
+          It plays like a fast browser-based spy game: one player secretly becomes the Traitor while
+          everyone else shares the same hidden topic.
+        </p>
+        <p>
+          Each round everyone answers a question, discusses the responses, and tries to identify who
+          received the different prompt. Because answers are chosen from real players in the room,
+          every choice can create suspicion, alliances, and misdirection.
+        </p>
+        <p>
+          The game is designed for friends, family game nights, classrooms, parties, Discord calls,
+          Zoom calls, and quick online sessions where nobody wants to download an app.
+        </p>
+        <p>
+          Create a private room, share the code, choose an avatar, wait for everyone to ready up, and
+          start playing. Rounds are short, easy to learn, and built around conversation instead of
+          complicated controls.
+        </p>
+        <p>
+          If you are searching for a dark spy-themed multiplayer game, an online party game with friends,
+          a browser social deduction game, or a traitor/imposter game you can play instantly, Find The
+          Traitor is made for that exact moment.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'terms',
+    icon: '📄',
+    label: 'Terms',
+    title: 'Terms & Fair Play',
+    content: (
+      <>
+        <p>
+          Find The Traitor works best when every player treats the room like a fair social deduction
+          match. The fun comes from clever answers, calm suspicion, and good discussion.
+        </p>
+        <ul>
+          <li>Be respectful to all players in every room.</li>
+          <li>Do not intentionally spoil your assigned question or hidden prompt.</li>
+          <li>Do not cheat by sharing screens, private messages, screenshots, or voice clues outside the game.</li>
+          <li>Keep usernames and avatars appropriate for the group you are playing with.</li>
+          <li>Hosts should start rounds only when the room is ready.</li>
+          <li>The game is intended for entertainment, party play, and friendly competition.</li>
+          <li>By playing you agree to follow community rules and play fairly.</li>
+        </ul>
+      </>
+    ),
+  },
+] as const
+
+type InfoTabId = (typeof INFO_TABS)[number]['id']
+
+const GAME_STRUCTURED_DATA = {
+  '@context': 'https://schema.org',
+  '@type': 'VideoGame',
+  name: 'Find The Traitor',
+  alternateName: ['Find The Traitor Game', 'Find the Traitor Online'],
+  description:
+    'Find The Traitor is an online multiplayer social deduction party game where friends create private rooms, answer secret questions, discuss clues, vote, and reveal the hidden traitor.',
+  genre: ['Social deduction', 'Party game', 'Multiplayer browser game', 'Spy game'],
+  gamePlatform: ['Web browser', 'Desktop web', 'Mobile web'],
+  applicationCategory: 'GameApplication',
+  operatingSystem: 'Any',
+  numberOfPlayers: {
+    '@type': 'QuantitativeValue',
+    minValue: 3,
+  },
+  playMode: 'MultiPlayer',
+  keywords:
+    'online multiplayer party game, social deduction game, spy game online, traitor game, browser party game, play with friends online',
+} as const
+
 function errorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object') {
@@ -47,6 +158,7 @@ export default function HomePage() {
   })
   const [avatar, setAvatar] = useState(AVATARS[0].src)
   const [hoveredAvatar, setHoveredAvatar] = useState<string | null>(null)
+  const [openInfoTab, setOpenInfoTab] = useState<InfoTabId | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -89,6 +201,10 @@ export default function HomePage() {
 
   return (
     <main className="spy-screen">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(GAME_STRUCTURED_DATA) }}
+      />
       <div className="screen-shadows" aria-hidden="true" />
       <section className="home-card">
         <p className="case-label">Classified party game</p>
@@ -183,6 +299,55 @@ export default function HomePage() {
           >
             {loading ? 'Preparing case...' : mode === 'create' ? 'Create Room' : 'Join Room'}
           </button>
+        </div>
+
+        <div className="intel-tabs" aria-label="Game information">
+          <div className="intel-tab-bar" role="tablist" aria-label="Classified game dossier">
+            {INFO_TABS.map((tab) => {
+              const isActive = openInfoTab === tab.id
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`intel-panel-${tab.id}`}
+                  id={`intel-tab-${tab.id}`}
+                  className="intel-tab"
+                  data-active={isActive}
+                  onClick={() => setOpenInfoTab((current) => current === tab.id ? null : tab.id)}
+                >
+                  <span aria-hidden="true">{tab.icon}</span>
+                  <span>{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="intel-panels">
+            {INFO_TABS.map((tab) => {
+              const isOpen = openInfoTab === tab.id
+
+              return (
+                <section
+                  key={tab.id}
+                  id={`intel-panel-${tab.id}`}
+                  className="intel-panel"
+                  data-open={isOpen}
+                  role="tabpanel"
+                  aria-labelledby={`intel-tab-${tab.id}`}
+                  aria-hidden={!isOpen}
+                >
+                  <div className="intel-panel-inner">
+                    <span className="intel-rule" aria-hidden="true" />
+                    <h2>{tab.title}</h2>
+                    <div className="intel-copy">{tab.content}</div>
+                  </div>
+                </section>
+              )
+            })}
+          </div>
         </div>
       </section>
     </main>

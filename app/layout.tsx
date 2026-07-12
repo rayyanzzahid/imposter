@@ -3,8 +3,57 @@ import { LiveBackdrop } from './components/LiveBackdrop'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Find The Traitor',
-  description: 'A dark social deduction party game',
+  applicationName: 'Find The Traitor',
+  title: {
+    default: 'Find The Traitor | Online Multiplayer Social Deduction Game',
+    template: '%s | Find The Traitor',
+  },
+  description:
+    'Play Find The Traitor, a dark online multiplayer social deduction party game where friends create private rooms, answer secret questions, discuss clues, vote, and reveal the hidden traitor.',
+  keywords: [
+    'Find The Traitor',
+    'Find The Traitor game',
+    'best multiplayer party game',
+    'multiplayer party game online',
+    'online party game',
+    'online multiplayer game with friends',
+    'spy party game',
+    'spy game online',
+    'social deduction game',
+    'social deduction party game',
+    'traitor game online',
+    'multiplayer traitor game',
+    'imposter game online',
+    'browser party game',
+    'no download multiplayer game',
+    'play with friends online',
+  ],
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  openGraph: {
+    title: 'Find The Traitor | Online Multiplayer Social Deduction Game',
+    description:
+      'Create a private room, invite friends, answer secret questions, discuss suspicious clues, vote, and expose the hidden traitor in a dark spy-themed browser game.',
+    type: 'website',
+    siteName: 'Find The Traitor',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Find The Traitor | Play Online With Friends',
+    description:
+      'A dark online multiplayer spy party game for friends, parties, classrooms, Discord calls, and quick browser play.',
+  },
+  category: 'game',
 }
 
 export default function RootLayout({
