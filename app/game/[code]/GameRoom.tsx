@@ -5,6 +5,7 @@ import type { MutableRefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getRoomPlayerId, getUserId } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/client'
 import { submitAnswer } from '@/lib/answers'
 import { submitVote } from '@/lib/votes'
 import { markSkipDiscussion } from '@/lib/rounds'
@@ -70,15 +71,27 @@ export default function GameRoom({ room }: { room: Room }) {
 
   useEffect(() => {
     if (!userId) return
+    const supabase = createClient()
+    let channel = supabase
+      .channel(`game:${room.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` }, loadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` }, loadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds', filter: `room_id=eq.${room.id}` }, loadAll)
+    if (round?.id) {
+      channel = channel
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'answers', filter: `round_id=eq.${round.id}` }, loadAll)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'votes', filter: `round_id=eq.${round.id}` }, loadAll)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_skips', filter: `round_id=eq.${round.id}` }, loadAll)
+    }
+    channel.subscribe()
     const timeout = window.setTimeout(loadAll, 0)
-    const interval = window.setInterval(loadAll, 1800)
 
     return () => {
       window.clearTimeout(timeout)
-      window.clearInterval(interval)
+      void supabase.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room.id, roomPlayerId, userId])
+  }, [room.id, roomPlayerId, round?.id, userId])
 
   useEffect(() => {
     advancing.current = false

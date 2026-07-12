@@ -7,6 +7,7 @@ import { toggleReady, kickPlayer, leaveRoom } from '@/lib/players'
 import { setRoomCategory, setTotalRounds } from '@/lib/rooms'
 import { startRound } from '@/app/actions/game'
 import { getLobbyStateAction } from '@/app/actions/players'
+import { createClient } from '@/lib/supabase/client'
 import { AvatarBadge } from '@/app/components/AvatarBadge'
 import type { Room, Player } from '@/lib/supabase/types'
 import Chat from '@/components/Chat'
@@ -53,15 +54,20 @@ export default function LobbyRoom({ room }: { room: Room }) {
   useEffect(() => {
     if (!userId) return
 
-    const timeout = window.setTimeout(loadPlayers, 0)
-    return () => window.clearTimeout(timeout)
-  }, [loadPlayers, userId])
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`lobby:${room.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` }, loadPlayers)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` }, loadPlayers)
+      .subscribe()
 
-  useEffect(() => {
-    if (!userId) return
-    const interval = window.setInterval(loadPlayers, 1800)
-    return () => window.clearInterval(interval)
-  }, [loadPlayers, userId])
+    const timeout = window.setTimeout(() => void loadPlayers(), 0)
+
+    return () => {
+      window.clearTimeout(timeout)
+      void supabase.removeChannel(channel)
+    }
+  }, [loadPlayers, room.id, userId])
 
   async function handleLeave() {
     if (me) await leaveRoom(me.id)
