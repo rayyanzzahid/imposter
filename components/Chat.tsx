@@ -74,8 +74,6 @@ export default function Chat({
 
     try {
       await sendChatMessage(roomId, me.id, text)
-      const data = await getChatMessagesAction(roomId)
-      setMessages(data)
     } catch (error) {
       setMessages((current) => current.filter((message) => message.id !== optimisticId))
       console.error('Send chat message failed', error)

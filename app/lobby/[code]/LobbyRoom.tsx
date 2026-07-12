@@ -62,9 +62,11 @@ export default function LobbyRoom({ room }: { room: Room }) {
       .subscribe()
 
     const timeout = window.setTimeout(() => void loadPlayers(), 0)
+    const fallbackInterval = window.setInterval(loadPlayers, 5000)
 
     return () => {
       window.clearTimeout(timeout)
+      window.clearInterval(fallbackInterval)
       void supabase.removeChannel(channel)
     }
   }, [loadPlayers, room.id, userId])

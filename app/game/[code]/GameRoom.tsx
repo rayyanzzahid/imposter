@@ -40,8 +40,13 @@ export default function GameRoom({ room }: { room: Room }) {
   const [roomStatus, setRoomStatus] = useState(room.status)
   const [totalRounds, setTotalRounds] = useState(room.total_rounds)
   const [pendingSubmission, setPendingSubmission] = useState(false)
+  const pendingSubmissionRef = useRef(false)
+  const optimisticAnswerRef = useRef<Answer | null>(null)
+  const optimisticVoteRef = useRef<Vote | null>(null)
+  const optimisticSkipRef = useRef<string | null>(null)
   const advancing = useRef(false)
   const nextRoundStarting = useRef(false)
+  const refreshTimer = useRef<number | null>(null)
 
   useEffect(() => {
     getUserId().then(setUserId)
@@ -50,7 +55,7 @@ export default function GameRoom({ room }: { room: Room }) {
   }, [room.code])
 
   async function loadAll() {
-    if (!userId) return
+    if (!userId || pendingSubmissionRef.current) return
 
     const state = await getGameStateAction(room.id, userId, roomPlayerId)
 
@@ -65,9 +70,25 @@ export default function GameRoom({ room }: { room: Room }) {
     setQuestion(state.question)
     setMainQuestion(state.mainQuestion)
     setImposterQuestion(state.imposterQuestion)
-    setAnswers(state.answers)
-    setVotes(state.votes)
-    setSkips(state.skips)
+    const optimisticAnswer = optimisticAnswerRef.current
+    const optimisticVote = optimisticVoteRef.current
+    const optimisticSkip = optimisticSkipRef.current
+    if (optimisticAnswer && state.answers.some((answer) => answer.player_id === optimisticAnswer.player_id)) optimisticAnswerRef.current = null
+    if (optimisticVote && state.votes.some((vote) => vote.voter_id === optimisticVote.voter_id && vote.voted_for_id === optimisticVote.voted_for_id)) optimisticVoteRef.current = null
+    if (optimisticSkip && state.skips.includes(optimisticSkip)) optimisticSkipRef.current = null
+    setAnswers(optimisticAnswer && !state.answers.some((answer) => answer.player_id === optimisticAnswer.player_id) ? [...state.answers, optimisticAnswer] : state.answers)
+    setVotes(optimisticVote && !state.votes.some((vote) => vote.voter_id === optimisticVote.voter_id && vote.voted_for_id === optimisticVote.voted_for_id)
+      ? [...state.votes.filter((vote) => vote.voter_id !== optimisticVote.voter_id), optimisticVote]
+      : state.votes)
+    setSkips(optimisticSkip && !state.skips.includes(optimisticSkip) ? [...state.skips, optimisticSkip] : state.skips)
+  }
+
+  function scheduleLoadAll() {
+    if (refreshTimer.current !== null) window.clearTimeout(refreshTimer.current)
+    refreshTimer.current = window.setTimeout(() => {
+      refreshTimer.current = null
+      void loadAll()
+    }, 100)
   }
 
   useEffect(() => {
@@ -75,20 +96,23 @@ export default function GameRoom({ room }: { room: Room }) {
     const supabase = createClient()
     let channel = supabase
       .channel(`game:${room.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` }, loadAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` }, loadAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds', filter: `room_id=eq.${room.id}` }, loadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${room.id}` }, scheduleLoadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${room.id}` }, scheduleLoadAll)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds', filter: `room_id=eq.${room.id}` }, scheduleLoadAll)
     if (round?.id) {
       channel = channel
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'answers', filter: `round_id=eq.${round.id}` }, loadAll)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'votes', filter: `round_id=eq.${round.id}` }, loadAll)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_skips', filter: `round_id=eq.${round.id}` }, loadAll)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'answers', filter: `round_id=eq.${round.id}` }, scheduleLoadAll)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'votes', filter: `round_id=eq.${round.id}` }, scheduleLoadAll)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_skips', filter: `round_id=eq.${round.id}` }, scheduleLoadAll)
     }
     channel.subscribe()
     const timeout = window.setTimeout(loadAll, 0)
+    const fallbackInterval = window.setInterval(loadAll, 3000)
 
     return () => {
       window.clearTimeout(timeout)
+      window.clearInterval(fallbackInterval)
+      if (refreshTimer.current !== null) window.clearTimeout(refreshTimer.current)
       void supabase.removeChannel(channel)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,7 +147,7 @@ export default function GameRoom({ room }: { room: Room }) {
     if (round?.phase !== 'discussion' || !round.discussion_ends_at) return
 
     const allSkipped = players.length > 0 && players.every((p) => skips.includes(p.id))
-    if (allSkipped && isHost && !pendingSubmission && !advancing.current) {
+    if (allSkipped && !pendingSubmission && !advancing.current) {
       advancing.current = true
       advanceToVoting(round.id)
       return
@@ -134,7 +158,7 @@ export default function GameRoom({ room }: { room: Room }) {
       setSecondsLeft(remaining)
       if (remaining === 0) {
         clearInterval(interval)
-        if (isHost && !advancing.current) {
+        if (!advancing.current) {
           advancing.current = true
           advanceToVoting(round.id)
         }
@@ -181,13 +205,18 @@ export default function GameRoom({ room }: { room: Room }) {
       created_at: new Date().toISOString(),
     }
     setAnswers((current) => [...current, optimisticAnswer])
+    optimisticAnswerRef.current = optimisticAnswer
+    pendingSubmissionRef.current = true
     setPendingSubmission(true)
     try {
       await submitAnswer(round!.id, me!.id, answeredPlayer.id, answeredPlayer.name)
+      await new Promise((resolve) => window.setTimeout(resolve, 2000))
     } catch (error) {
       setAnswers(previousAnswers)
+      optimisticAnswerRef.current = null
       console.error('Submit answer failed', error)
     } finally {
+      pendingSubmissionRef.current = false
       setPendingSubmission(false)
     }
   }
@@ -202,13 +231,18 @@ export default function GameRoom({ room }: { room: Room }) {
       created_at: new Date().toISOString(),
     }
     setVotes((current) => [...current.filter((vote) => vote.voter_id !== me!.id), optimisticVote])
+    optimisticVoteRef.current = optimisticVote
+    pendingSubmissionRef.current = true
     setPendingSubmission(true)
     try {
       await submitVote(round!.id, me!.id, votedForId)
+      await new Promise((resolve) => window.setTimeout(resolve, 2000))
     } catch (error) {
       setVotes(previousVotes)
+      optimisticVoteRef.current = null
       console.error('Submit vote failed', error)
     } finally {
+      pendingSubmissionRef.current = false
       setPendingSubmission(false)
     }
   }
@@ -217,13 +251,18 @@ export default function GameRoom({ room }: { room: Room }) {
     if (iSkipped) return
     const previousSkips = skips
     setSkips((current) => [...current, me!.id])
+    optimisticSkipRef.current = me!.id
+    pendingSubmissionRef.current = true
     setPendingSubmission(true)
     try {
       await markSkipDiscussion(round!.id, me!.id)
+      await new Promise((resolve) => window.setTimeout(resolve, 2000))
     } catch (error) {
       setSkips(previousSkips)
+      optimisticSkipRef.current = null
       console.error('Skip discussion failed', error)
     } finally {
+      pendingSubmissionRef.current = false
       setPendingSubmission(false)
     }
   }
@@ -282,7 +321,9 @@ export default function GameRoom({ room }: { room: Room }) {
               </>
             ) : (
               <p className="quiet-copy mx-auto">
-                You chose {myAnswer.text}. Waiting for others ({answers.length}/{players.length} answered).
+              {allAnswered
+                ? 'Everyone answered. Preparing the final reveal...'
+                : `You chose ${myAnswer.text}. Waiting for others (${answers.length}/${players.length} answered).`}
               </p>
             )}
           </div>
@@ -378,7 +419,6 @@ export default function GameRoom({ room }: { room: Room }) {
     </main>
   )
 }
-
 function getRoundSoundResult(round: Round | null, votes: Vote[], me: Player | null): 'win' | 'lose' | null {
   if (!round || round.phase !== 'reveal' || !me) return null
 
@@ -481,6 +521,13 @@ function RevealPhase({
     else await startRound(roomId)
   }
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => void handleNextOrEnd(), 10000)
+    return () => window.clearTimeout(timeout)
+    // The reveal round id controls this one-time countdown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.id])
+
   return (
     <div className="game-stack mx-auto">
       <div className={`stamp mx-auto ${imposterCaught ? '' : 'green'}`}>
@@ -515,7 +562,6 @@ function RevealPhase({
     </div>
   )
 }
-
 function Scoreboard({ players }: { players: Player[] }) {
   const romanRanks = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
   const rankedPlayers = [...players].sort((a, b) => b.score - a.score)
@@ -543,3 +589,4 @@ function Scoreboard({ players }: { players: Player[] }) {
     </div>
   )
 }
+
