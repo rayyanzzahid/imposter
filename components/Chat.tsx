@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getChatMessagesAction } from '@/app/actions/chat'
 import { sendChatMessage } from '@/lib/chat'
+import { createClient } from '@/lib/supabase/client'
 import type { Player, ChatMessage } from '@/lib/supabase/types'
 
 export default function Chat({
@@ -19,6 +20,7 @@ export default function Chat({
   const [open, setOpen] = useState(false)
   const [readMessageCount, setReadMessageCount] = useState(0)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const unreadCount = Math.max(messages.length - readMessageCount, 0)
 
@@ -30,13 +32,19 @@ export default function Chat({
       if (active) setMessages(data)
     }
 
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`chat:${roomId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, loadMessages)
+      .subscribe()
     const timeout = window.setTimeout(loadMessages, 0)
-    const interval = window.setInterval(loadMessages, 1800)
+    const fallbackInterval = window.setInterval(loadMessages, 5000)
 
     return () => {
       active = false
       window.clearTimeout(timeout)
-      window.clearInterval(interval)
+      window.clearInterval(fallbackInterval)
+      void supabase.removeChannel(channel)
     }
   }, [roomId])
 
@@ -44,13 +52,34 @@ export default function Chat({
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open])
 
+  useEffect(() => {
+    if (!open) return
+    const timeout = window.setTimeout(() => inputRef.current?.focus(), 0)
+    return () => window.clearTimeout(timeout)
+  }, [open])
+
   async function handleSend() {
     if (!me || !input.trim()) return
     const text = input
+    const optimisticId = `optimistic-${Date.now()}`
+    const optimisticMessage: ChatMessage = {
+      id: optimisticId,
+      room_id: roomId,
+      player_id: me.id,
+      text,
+      created_at: new Date().toISOString(),
+    }
     setInput('')
-    await sendChatMessage(roomId, me.id, text)
-    const data = await getChatMessagesAction(roomId)
-    setMessages(data)
+    setMessages((current) => [...current, optimisticMessage])
+
+    try {
+      await sendChatMessage(roomId, me.id, text)
+      const data = await getChatMessagesAction(roomId)
+      setMessages(data)
+    } catch (error) {
+      setMessages((current) => current.filter((message) => message.id !== optimisticId))
+      console.error('Send chat message failed', error)
+    }
   }
 
   function playerFor(id: string) {
@@ -95,6 +124,7 @@ export default function Chat({
 
       <div className="chat-compose">
         <input
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {

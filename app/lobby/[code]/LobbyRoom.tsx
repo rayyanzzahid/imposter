@@ -163,7 +163,16 @@ export default function LobbyRoom({ room }: { room: Room }) {
                     </span>
                     {isHost && !player.is_host && (
                       <button
-                        onClick={() => kickPlayer(player.id)}
+                        onClick={async () => {
+                          const previousPlayers = players
+                          setPlayers((current) => current.filter((item) => item.id !== player.id))
+                          try {
+                            await kickPlayer(player.id)
+                          } catch (error) {
+                            setPlayers(previousPlayers)
+                            console.error('Kick failed', error)
+                          }
+                        }}
                         className="text-button kick-action"
                         aria-label={`Kick ${player.name}`}
                         title={`Kick ${player.name}`}
@@ -231,8 +240,14 @@ export default function LobbyRoom({ room }: { room: Room }) {
               {me && (
                 <button
                   onClick={async () => {
-                    await toggleReady(me.id, me.is_ready)
-                    await loadPlayers()
+                    const previousPlayers = players
+                    setPlayers((current) => current.map((player) => player.id === me.id ? { ...player, is_ready: !player.is_ready } : player))
+                    try {
+                      await toggleReady(me.id, me.is_ready)
+                    } catch (error) {
+                      setPlayers(previousPlayers)
+                      console.error('Ready update failed', error)
+                    }
                   }}
                   className={`secondary-action ready-toggle ${me.is_ready ? 'is-ready' : ''}`}
                 >

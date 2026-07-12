@@ -39,6 +39,7 @@ export default function GameRoom({ room }: { room: Room }) {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [roomStatus, setRoomStatus] = useState(room.status)
   const [totalRounds, setTotalRounds] = useState(room.total_rounds)
+  const [pendingSubmission, setPendingSubmission] = useState(false)
   const advancing = useRef(false)
   const nextRoundStarting = useRef(false)
 
@@ -104,11 +105,11 @@ export default function GameRoom({ room }: { room: Room }) {
   const roundSoundResult = getRoundSoundResult(round, votes, me)
 
   useEffect(() => {
-    if (round?.phase === 'answering' && allAnswered && isHost && !advancing.current) {
+    if (round?.phase === 'answering' && allAnswered && isHost && !pendingSubmission && !advancing.current) {
       advancing.current = true
       advanceToQuestionReveal(round.id)
     }
-  }, [round?.phase, allAnswered, isHost, round?.id])
+  }, [round?.phase, allAnswered, isHost, pendingSubmission, round?.id])
 
   useEffect(() => {
     if (round?.phase === 'question_reveal' && isHost && !advancing.current) {
@@ -122,7 +123,7 @@ export default function GameRoom({ room }: { room: Room }) {
     if (round?.phase !== 'discussion' || !round.discussion_ends_at) return
 
     const allSkipped = players.length > 0 && players.every((p) => skips.includes(p.id))
-    if (allSkipped && isHost && !advancing.current) {
+    if (allSkipped && isHost && !pendingSubmission && !advancing.current) {
       advancing.current = true
       advanceToVoting(round.id)
       return
@@ -141,14 +142,14 @@ export default function GameRoom({ room }: { room: Room }) {
     }, 500)
 
     return () => clearInterval(interval)
-  }, [round?.phase, round?.discussion_ends_at, isHost, round?.id, players, skips])
+  }, [round?.phase, round?.discussion_ends_at, isHost, pendingSubmission, round?.id, players, skips])
 
   useEffect(() => {
-    if (round?.phase === 'voting' && allVoted && isHost && !advancing.current) {
+    if (round?.phase === 'voting' && allVoted && isHost && !pendingSubmission && !advancing.current) {
       advancing.current = true
       advanceToReveal(round.id)
     }
-  }, [round?.phase, allVoted, isHost, round?.id])
+  }, [round?.phase, allVoted, isHost, pendingSubmission, round?.id])
 
   useResultSound(roundSoundResult, round?.phase === 'reveal' ? round.id : null)
 
@@ -170,19 +171,61 @@ export default function GameRoom({ room }: { room: Room }) {
 
   async function handleAnswer(answeredPlayer: Player) {
     if (myAnswer) return
-    await submitAnswer(round!.id, me!.id, answeredPlayer.id, answeredPlayer.name)
-    await loadAll()
+    const previousAnswers = answers
+    const optimisticAnswer: Answer = {
+      id: `optimistic-answer-${me!.id}`,
+      round_id: round!.id,
+      player_id: me!.id,
+      answered_player_id: answeredPlayer.id,
+      text: answeredPlayer.name,
+      created_at: new Date().toISOString(),
+    }
+    setAnswers((current) => [...current, optimisticAnswer])
+    setPendingSubmission(true)
+    try {
+      await submitAnswer(round!.id, me!.id, answeredPlayer.id, answeredPlayer.name)
+    } catch (error) {
+      setAnswers(previousAnswers)
+      console.error('Submit answer failed', error)
+    } finally {
+      setPendingSubmission(false)
+    }
   }
 
   async function handleVote(votedForId: string) {
-    await submitVote(round!.id, me!.id, votedForId)
-    await loadAll()
+    const previousVotes = votes
+    const optimisticVote: Vote = {
+      id: `optimistic-vote-${me!.id}`,
+      round_id: round!.id,
+      voter_id: me!.id,
+      voted_for_id: votedForId,
+      created_at: new Date().toISOString(),
+    }
+    setVotes((current) => [...current.filter((vote) => vote.voter_id !== me!.id), optimisticVote])
+    setPendingSubmission(true)
+    try {
+      await submitVote(round!.id, me!.id, votedForId)
+    } catch (error) {
+      setVotes(previousVotes)
+      console.error('Submit vote failed', error)
+    } finally {
+      setPendingSubmission(false)
+    }
   }
 
   async function handleSkip() {
     if (iSkipped) return
-    await markSkipDiscussion(round!.id, me!.id)
-    await loadAll()
+    const previousSkips = skips
+    setSkips((current) => [...current, me!.id])
+    setPendingSubmission(true)
+    try {
+      await markSkipDiscussion(round!.id, me!.id)
+    } catch (error) {
+      setSkips(previousSkips)
+      console.error('Skip discussion failed', error)
+    } finally {
+      setPendingSubmission(false)
+    }
   }
 
   if (roomStatus === 'ended') {

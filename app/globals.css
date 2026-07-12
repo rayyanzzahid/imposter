@@ -924,6 +924,18 @@ button {
   background: rgba(255, 255, 255, 0.04);
   color: var(--ink);
   font-size: 0.88rem;
+  animation: chatMessageIn 220ms ease-out both;
+}
+
+@keyframes chatMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .chat-bubble.mine {
