@@ -146,7 +146,9 @@ export default function GameRoom({ room }: { room: Room }) {
   }, [round?.phase, isHost, round?.id])
 
   useEffect(() => {
-    if (round?.phase !== 'discussion' || !round.discussion_ends_at) return
+    if (round?.phase !== 'discussion' || !round.discussion_ends_at) {
+      return
+    }
 
     const allSkipped = players.length > 0 && players.every((p) => skips.includes(p.id))
     if (allSkipped && !pendingSubmission && !advancing.current) {
@@ -155,17 +157,19 @@ export default function GameRoom({ room }: { room: Room }) {
       return
     }
 
-    const interval = setInterval(() => {
+    const updateRemaining = () => {
       const remaining = Math.max(0, Math.ceil((new Date(round.discussion_ends_at!).getTime() - Date.now()) / 1000))
       setSecondsLeft(remaining)
       if (remaining === 0) {
-        clearInterval(interval)
         if (isHost && !advancing.current) {
           advancing.current = true
           advanceToVoting(round.id)
         }
       }
-    }, 500)
+    }
+
+    updateRemaining()
+    const interval = setInterval(updateRemaining, 500)
 
     return () => clearInterval(interval)
   }, [round?.phase, round?.discussion_ends_at, isHost, pendingSubmission, round?.id, players, skips])
@@ -194,6 +198,15 @@ export default function GameRoom({ room }: { room: Room }) {
   const myAnswer = answers.find((answer) => answer.player_id === me.id)
   const myVote = votes.find((vote) => vote.voter_id === me.id)
   const iSkipped = skips.includes(me.id)
+  const displaySeconds = round.phase === 'discussion'
+    ? round.discussion_ends_at
+      ? (() => {
+        // eslint-disable-next-line react-hooks/purity
+        const remaining = Math.max(0, Math.ceil((new Date(round.discussion_ends_at).getTime() - Date.now()) / 1000))
+        return remaining === 0 ? 0 : Math.min(120, remaining + 1)
+        })()
+      : 120
+    : secondsLeft
 
   async function handleAnswer(answeredPlayer: Player) {
     if (myAnswer) return
@@ -356,7 +369,7 @@ export default function GameRoom({ room }: { room: Room }) {
         {round.phase === 'discussion' && (
           <div className="game-stack mx-auto">
             <p className="case-label">Discussion</p>
-            <div className="big-timer">{secondsLeft}s</div>
+            <div className="big-timer">{displaySeconds}s</div>
             <p className="quiet-copy mx-auto">Talk it out. Who answered like they had the wrong question?</p>
 
             <div className="answer-list">
