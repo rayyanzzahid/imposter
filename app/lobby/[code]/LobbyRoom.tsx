@@ -12,6 +12,8 @@ import { AvatarBadge } from '@/app/components/AvatarBadge'
 import type { Room, Player } from '@/lib/supabase/types'
 import Chat from '@/components/Chat'
 
+type RoomSummary = Pick<Room, 'id' | 'code' | 'status' | 'category' | 'total_rounds'>
+
 const CATEGORIES = [
   { value: 'all', label: 'All categories' },
   { value: 'general', label: 'Friend group classics' },
@@ -23,7 +25,7 @@ const CATEGORIES = [
   { value: 'travel', label: 'On the road' },
 ]
 
-export default function LobbyRoom({ room }: { room: Room }) {
+export default function LobbyRoom({ room }: { room: RoomSummary }) {
   const router = useRouter()
   const [players, setPlayers] = useState<Player[]>([])
   const [category, setCategory] = useState(room.category ?? 'all')
@@ -279,3 +281,4 @@ export default function LobbyRoom({ room }: { room: Room }) {
     </main>
   )
 }
+

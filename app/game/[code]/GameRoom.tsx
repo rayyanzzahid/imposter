@@ -23,7 +23,9 @@ import { AvatarBadge } from '@/app/components/AvatarBadge'
 import type { Room, Player, Round, Question, Answer, Vote } from '@/lib/supabase/types'
 import Chat from '@/components/Chat'
 
-export default function GameRoom({ room }: { room: Room }) {
+type RoomSummary = Pick<Room, 'id' | 'code' | 'status' | 'category' | 'total_rounds'>
+
+export default function GameRoom({ room }: { room: RoomSummary }) {
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [roomPlayerId, setRoomPlayerId] = useState<string | null>(null)
@@ -604,4 +606,5 @@ function Scoreboard({ players }: { players: Player[] }) {
     </div>
   )
 }
+
 

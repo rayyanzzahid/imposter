@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { findSessionPlayer } from '@/lib/session'
 import LobbyRoom from './LobbyRoom'
 
 export default async function LobbyPage({
@@ -12,11 +13,17 @@ export default async function LobbyPage({
 
   const { data: room } = await supabase
     .from('rooms')
-    .select()
+    .select('id,code,status,category,total_rounds')
     .eq('code', code.toUpperCase())
-    .single()
+    .maybeSingle()
 
   if (!room) notFound()
+
+  try {
+    await findSessionPlayer(supabase, room.id)
+  } catch {
+    notFound()
+  }
 
   return <LobbyRoom room={room} />
 }
