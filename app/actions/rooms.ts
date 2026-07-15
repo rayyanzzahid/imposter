@@ -3,6 +3,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateRoomCode } from '@/lib/roomCode'
 import { getOrCreateSessionUserId, requireHostPlayer } from '@/lib/session'
+import { enforceRateLimit } from '@/lib/rate-limit'
+import { validateUserContent } from '@/lib/content-filter'
 
 function supabaseMessage(label: string, error: unknown) {
   if (error instanceof Error) return `${label}: ${error.message}`
@@ -71,9 +73,7 @@ async function isNameTaken(roomId: string, name: string) {
 }
 
 function cleanName(name: string) {
-  const cleaned = name.trim().replace(/\s+/g, ' ').slice(0, 32)
-  if (cleaned.length < 1) throw new Error('Enter your name first')
-  return cleaned
+  return validateUserContent(name, 'name')
 }
 
 function cleanAvatar(avatar: string) {
@@ -85,6 +85,7 @@ function cleanAvatar(avatar: string) {
 }
 
 export async function createRoomAction(hostName: string, avatar: string) {
+  await enforceRateLimit('create-room', 5, 60_000)
   const supabase = createAdminClient()
   const userId = await getOrCreateSessionUserId()
   const name = cleanName(hostName)
@@ -107,18 +108,23 @@ export async function createRoomAction(hostName: string, avatar: string) {
 }
 
 export async function joinRoomAction(code: string, playerName: string, avatar: string) {
+  await enforceRateLimit('join-room', 10, 60_000)
   const supabase = createAdminClient()
-  const userId = await getOrCreateSessionUserId()
   const name = cleanName(playerName)
   const playerAvatar = cleanAvatar(avatar)
-  await ensureUser(userId, name, playerAvatar)
+  const roomCode = code.trim().toUpperCase()
   const { data: room, error: roomError } = await supabase
     .from('rooms')
     .select()
-    .eq('code', code.trim().toUpperCase())
+    .eq('code', roomCode)
     .single()
 
   if (roomError || !room) throw new Error('Room not found')
+
+  // Only create the backing auth profile after the room has been validated.
+  // This prevents invalid join attempts from creating unbounded fake users.
+  const userId = await getOrCreateSessionUserId()
+  await ensureUser(userId, name, playerAvatar)
 
   if (await isNameTaken(room.id, name)) {
     throw new Error('That name is already taken in this room')

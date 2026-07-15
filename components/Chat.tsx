@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getChatMessagesAction } from '@/app/actions/chat'
 import { sendChatMessage } from '@/lib/chat'
+import { validateUserContent } from '@/lib/content-filter'
 import { createClient } from '@/lib/supabase/client'
 import type { Player, ChatMessage } from '@/lib/supabase/types'
 
@@ -19,6 +20,7 @@ export default function Chat({
   const [input, setInput] = useState('')
   const [open, setOpen] = useState(false)
   const [readMessageCount, setReadMessageCount] = useState(0)
+  const [error, setError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -60,7 +62,14 @@ export default function Chat({
 
   async function handleSend() {
     if (!me || !input.trim()) return
-    const text = input
+    let text: string
+    try {
+      text = validateUserContent(input, 'chat')
+    } catch (validationError) {
+      setError(validationError instanceof Error ? validationError.message : 'Please keep chat respectful.')
+      return
+    }
+    setError('')
     const optimisticId = `optimistic-${Date.now()}`
     const optimisticMessage: ChatMessage = {
       id: optimisticId,
@@ -76,7 +85,7 @@ export default function Chat({
       await sendChatMessage(roomId, me.id, text)
     } catch (error) {
       setMessages((current) => current.filter((message) => message.id !== optimisticId))
-      console.error('Send chat message failed', error)
+      setError(error instanceof Error ? error.message : 'Message could not be sent.')
     }
   }
 
@@ -136,6 +145,7 @@ export default function Chat({
           Send
         </button>
       </div>
+      {error && <p className="quiet-copy chat-error" role="alert">{error}</p>}
     </div>
   )
 }

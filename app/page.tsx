@@ -5,7 +5,9 @@ import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createRoom, joinRoom } from '@/lib/rooms'
+import { validateUserContent } from '@/lib/content-filter'
 import { SpyFigures } from '@/app/components/SpyFigures'
+import { ensureAnonymousAuth } from '@/lib/supabase/auth'
 
 const AVATARS = [
   { src: '/avatars/detective1.png', name: 'Cipher', role: 'Detective', description: 'Calm reader. Good for careful players.' },
@@ -163,11 +165,16 @@ export default function HomePage() {
   const [error, setError] = useState('')
 
   async function handleCreate() {
-    if (!name.trim()) return setError('Enter your name first')
+    try {
+      validateUserContent(name, 'name')
+    } catch (error) {
+      return setError(error instanceof Error ? error.message : 'Please choose an appropriate name.')
+    }
     setLoading(true)
     setError('')
 
     try {
+      await ensureAnonymousAuth()
       const roomCode = await createRoom(name.trim(), avatar)
       router.push(`/lobby/${roomCode}`)
     } catch (e) {
@@ -178,12 +185,17 @@ export default function HomePage() {
   }
 
   async function handleJoin() {
-    if (!name.trim()) return setError('Enter your name first')
+    try {
+      validateUserContent(name, 'name')
+    } catch (error) {
+      return setError(error instanceof Error ? error.message : 'Please choose an appropriate name.')
+    }
     if (!code.trim()) return setError('Enter the room code')
     setLoading(true)
     setError('')
 
     try {
+      await ensureAnonymousAuth()
       const roomCode = await joinRoom(code.trim(), name.trim(), avatar)
       router.push(`/lobby/${roomCode}`)
     } catch (e) {

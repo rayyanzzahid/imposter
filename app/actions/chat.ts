@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { findSessionPlayer } from '@/lib/session'
+import { validateUserContent } from '@/lib/content-filter'
 import type { ChatMessage } from '@/lib/supabase/types'
 
 export async function getChatMessagesAction(roomId: string) {
@@ -19,8 +20,7 @@ export async function getChatMessagesAction(roomId: string) {
 }
 
 export async function sendChatMessageAction(roomId: string, playerId: string, text: string) {
-  const trimmed = text.trim()
-  if (!trimmed) return
+  const trimmed = validateUserContent(text, 'chat')
 
   const supabase = createAdminClient()
   const player = await findSessionPlayer(supabase, roomId, playerId)
@@ -37,7 +37,7 @@ export async function sendChatMessageAction(roomId: string, playerId: string, te
 
   const { error } = await supabase
     .from('chat_messages')
-    .insert({ room_id: roomId, player_id: player.id, text: trimmed.slice(0, 300) })
+    .insert({ room_id: roomId, player_id: player.id, text: trimmed })
 
   if (error) throw error
 }

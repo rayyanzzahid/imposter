@@ -2,12 +2,22 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireHostPlayer } from '@/lib/session'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
 const DISCUSSION_DURATION_SECONDS = 120
 
 export async function startRound(roomId: string) {
+  await enforceRateLimit('start-round', 30, 60_000)
   const supabase = createAdminClient()
   await requireHostPlayer(supabase, roomId)
+
+  const { data: room, error: roomError } = await supabase
+    .from('rooms')
+    .select('status,total_rounds,category')
+    .eq('id', roomId)
+    .single()
+  if (roomError || !room) throw new Error('Room not found')
+  if (room.status === 'ended') throw new Error('This game has ended.')
 
   const { data: players } = await supabase.from('players').select().eq('room_id', roomId)
   if (!players || players.length < 3) {
@@ -19,15 +29,18 @@ export async function startRound(roomId: string) {
 
   const { data: rounds } = await supabase
     .from('rounds')
-    .select()
+    .select('id,round_number,phase')
     .eq('room_id', roomId)
     .order('round_number', { ascending: false })
     .limit(1)
 
-  const nextRoundNumber = rounds && rounds.length > 0 ? rounds[0].round_number + 1 : 1
+  if (rounds?.[0] && rounds[0].phase !== 'reveal') {
+    throw new Error('The current round is still in progress.')
+  }
 
-  const { data: room } = await supabase.from('rooms').select().eq('id', roomId).single()
-  const category = room?.category ?? 'all'
+  const nextRoundNumber = rounds && rounds.length > 0 ? rounds[0].round_number + 1 : 1
+  if (nextRoundNumber > room.total_rounds) throw new Error('All configured rounds are complete.')
+  const category = room.category ?? 'all'
 
   const { data: mainQuestion, error: mainError } = await supabase
     .rpc('get_random_question', { target_category: category })
@@ -58,10 +71,12 @@ export async function startRound(roomId: string) {
 
   if (error) throw error
 
-  await supabase.from('rooms').update({ status: 'playing' }).eq('id', roomId)
+  const { error: roomUpdateError } = await supabase.from('rooms').update({ status: 'playing' }).eq('id', roomId)
+  if (roomUpdateError) throw roomUpdateError
 }
 
 export async function advanceToQuestionReveal(roundId: string) {
+  await enforceRateLimit('advance-round', 30, 60_000)
   const supabase = createAdminClient()
   const { data: round } = await supabase.from('rounds').select('room_id,phase').eq('id', roundId).single()
   if (!round) throw new Error('Round not found')
@@ -72,6 +87,7 @@ export async function advanceToQuestionReveal(roundId: string) {
 }
 
 export async function advanceToDiscussion(roundId: string) {
+  await enforceRateLimit('advance-round', 30, 60_000)
   const supabase = createAdminClient()
   const { data: round } = await supabase.from('rounds').select('room_id,phase').eq('id', roundId).single()
   if (!round) throw new Error('Round not found')
@@ -86,6 +102,7 @@ export async function advanceToDiscussion(roundId: string) {
 }
 
 export async function advanceToVoting(roundId: string) {
+  await enforceRateLimit('advance-round', 30, 60_000)
   const supabase = createAdminClient()
   const { data: round } = await supabase.from('rounds').select('room_id,phase').eq('id', roundId).single()
   if (!round) throw new Error('Round not found')
@@ -96,6 +113,7 @@ export async function advanceToVoting(roundId: string) {
 }
 
 export async function advanceToReveal(roundId: string) {
+  await enforceRateLimit('advance-round', 30, 60_000)
   const supabase = createAdminClient()
 
   const { data: round } = await supabase.from('rounds').select().eq('id', roundId).single()
@@ -105,6 +123,18 @@ export async function advanceToReveal(roundId: string) {
 
   const { data: votes } = await supabase.from('votes').select().eq('round_id', roundId)
   if (!votes) throw new Error('No votes found')
+
+  // Claim the transition before scoring so two concurrent host requests
+  // cannot both award points.
+  const { data: claimedRound, error: claimError } = await supabase
+    .from('rounds')
+    .update({ phase: 'reveal' })
+    .eq('id', roundId)
+    .eq('phase', 'voting')
+    .select('id')
+    .maybeSingle()
+  if (claimError) throw claimError
+  if (!claimedRound) throw new Error('This round has already been revealed.')
 
   const tally: Record<string, number> = {}
   for (const v of votes) {
@@ -129,11 +159,10 @@ export async function advanceToReveal(roundId: string) {
     }
   }
 
-  const { error } = await supabase.from('rounds').update({ phase: 'reveal' }).eq('id', roundId)
-  if (error) throw error
 }
 
 export async function endGame(roomId: string) {
+  await enforceRateLimit('end-game', 10, 60_000)
   const supabase = createAdminClient()
   await requireHostPlayer(supabase, roomId)
   const { error } = await supabase.from('rooms').update({ status: 'ended' }).eq('id', roomId)
@@ -141,6 +170,7 @@ export async function endGame(roomId: string) {
 }
 
 export async function resetGame(roomId: string) {
+  await enforceRateLimit('reset-game', 10, 60_000)
   const supabase = createAdminClient()
   await requireHostPlayer(supabase, roomId)
 

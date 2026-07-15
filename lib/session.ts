@@ -2,12 +2,15 @@ import { createHmac, randomUUID, timingSafeEqual } from 'crypto'
 import { cookies } from 'next/headers'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Player } from './supabase/types'
+import { createClient as createSupabaseServerClient } from './supabase/server'
 
 const SESSION_COOKIE = 'find-the-traitor-session'
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365
 
 function sessionSecret() {
-  const secret = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
+  const secret = process.env.SESSION_SECRET
+    ?? process.env.SUPABASE_SECRET_KEY
+    ?? process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!secret) throw new Error('Server session secret is missing')
   return secret
 }
@@ -35,12 +38,29 @@ function decodeSession(value: string | undefined) {
 
 export async function getSessionUserId() {
   const cookieStore = await cookies()
-  return decodeSession(cookieStore.get(SESSION_COOKIE)?.value)
+  const legacyUserId = decodeSession(cookieStore.get(SESSION_COOKIE)?.value)
+  if (legacyUserId) return legacyUserId
+
+  const supabase = await createSupabaseServerClient()
+  const { data: authUser } = await supabase.auth.getUser()
+  if (authUser.user) return authUser.user.id
+
+  return null
 }
 
 export async function getOrCreateSessionUserId() {
   const existingUserId = await getSessionUserId()
-  if (existingUserId) return existingUserId
+  if (existingUserId) {
+    const cookieStore = await cookies()
+    cookieStore.set(SESSION_COOKIE, encodeSession(existingUserId), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: ONE_YEAR_SECONDS,
+      path: '/',
+    })
+    return existingUserId
+  }
 
   const userId = randomUUID()
   const cookieStore = await cookies()
