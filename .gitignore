@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local development server output
 codex-dev-server*.log
+
+CLAUDE.md
+AGENTS.md
