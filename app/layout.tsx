@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import { LiveBackdrop } from './components/LiveBackdrop'
 import './globals.css'
 
@@ -53,6 +53,14 @@ export const metadata: Metadata = {
     description:
       'A dark online multiplayer spy party game for friends, parties, classrooms, Discord calls, and quick browser play.',
   },
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
+  },
   category: 'game',
 }
 
@@ -70,3 +78,4 @@ export default function RootLayout({
     </html>
   )
 }
+
